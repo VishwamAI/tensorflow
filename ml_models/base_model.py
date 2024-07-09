@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow_model_optimization as tfmot
 
 
-class BaseModel(tf.keras.Model):
+class BaseModel(tf.keras.Model, tfmot.clustering.keras.ClusterableLayer):
     def __init__(
         self,
         advanced_math: bool = False,
@@ -35,6 +35,17 @@ class BaseModel(tf.keras.Model):
         self.apply_pruning = apply_pruning
         self.apply_clustering = apply_clustering
 
+        # Example clusterable layer
+        self.dense_layer = tf.keras.layers.Dense(10)
+
+    def get_clusterable_weights(self):
+        """
+        Return a list of clusterable weight tensors.
+
+        :return: List of (name, kernel) tuples for clusterable weights.
+        """
+        return [('kernel', self.dense_layer.kernel)]
+
     def call(
         self, inputs: tf.Tensor, training: bool = False, n_components: int = None
     ) -> tf.Tensor:
@@ -55,7 +66,10 @@ class BaseModel(tf.keras.Model):
                 quantization=self.apply_quantization,
                 pruning=self.apply_pruning,
             )
+        # Apply the dense layer
+        x = self.dense_layer(x)
         return x
+
 
     def advanced_math_operations(
         self, x: tf.Tensor, n_components: int = None
