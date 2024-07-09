@@ -1,7 +1,19 @@
 import tensorflow as tf
 
+
 class BaseModel(tf.keras.Model):
-    def __init__(self, advanced_math: bool = False, mlu_optimization: bool = False, apply_matrix_multiplication: bool = False, apply_pca: bool = False, apply_quantization: bool = False, apply_pruning: bool = False, apply_clustering: bool = False, *args, **kwargs):
+    def __init__(
+        self,
+        advanced_math: bool = False,
+        mlu_optimization: bool = False,
+        apply_matrix_multiplication: bool = False,
+        apply_pca: bool = False,
+        apply_quantization: bool = False,
+        apply_pruning: bool = False,
+        apply_clustering: bool = False,
+        *args,
+        **kwargs,
+    ):
         """
         Initialize the BaseModel with optional advanced math and MLU optimization.
 
@@ -22,7 +34,9 @@ class BaseModel(tf.keras.Model):
         self.apply_pruning = apply_pruning
         self.apply_clustering = apply_clustering
 
-    def call(self, inputs: tf.Tensor, training: bool = False, n_components: int = None) -> tf.Tensor:
+    def call(
+        self, inputs: tf.Tensor, training: bool = False, n_components: int = None
+    ) -> tf.Tensor:
         """
         Forward pass logic for the model.
 
@@ -39,11 +53,13 @@ class BaseModel(tf.keras.Model):
                 x,
                 quantization=self.apply_quantization,
                 pruning=self.apply_pruning,
-                clustering=self.apply_clustering
+                clustering=self.apply_clustering,
             )
         return x
 
-    def advanced_math_operations(self, x: tf.Tensor, n_components: int = None) -> tf.Tensor:
+    def advanced_math_operations(
+        self, x: tf.Tensor, n_components: int = None
+    ) -> tf.Tensor:
         """
         Apply advanced mathematical operations to the input tensor.
 
@@ -70,7 +86,9 @@ class BaseModel(tf.keras.Model):
 
         return x
 
-    def pca_dimensionality_reduction(self, x: tf.Tensor, n_components: int = None) -> tf.Tensor:
+    def pca_dimensionality_reduction(
+        self, x: tf.Tensor, n_components: int = None
+    ) -> tf.Tensor:
         """
         Perform PCA for dimensionality reduction.
 
@@ -86,14 +104,22 @@ class BaseModel(tf.keras.Model):
 
         x_mean = tf.reduce_mean(x, axis=0)
         x_centered = x - x_mean
-        covariance_matrix = tf.matmul(tf.transpose(x_centered), x_centered) / tf.cast(tf.shape(x_centered)[0] - 1, tf.float32)
+        covariance_matrix = tf.matmul(tf.transpose(x_centered), x_centered) / tf.cast(
+            tf.shape(x_centered)[0] - 1, tf.float32
+        )
         eigenvalues, eigenvectors = tf.linalg.eigh(covariance_matrix)
         if n_components is not None:
             eigenvectors = eigenvectors[:, -n_components:]
         x_reduced = tf.matmul(x_centered, eigenvectors)
         return x_reduced
 
-    def mlu_optimizations(self, x: tf.Tensor, quantization: bool = False, pruning: bool = False, clustering: bool = False) -> tf.Tensor:
+    def mlu_optimizations(
+        self,
+        x: tf.Tensor,
+        quantization: bool = False,
+        pruning: bool = False,
+        clustering: bool = False,
+    ) -> tf.Tensor:
         """
         Apply MLU optimization techniques to the input tensor.
 
@@ -108,7 +134,9 @@ class BaseModel(tf.keras.Model):
 
         if quantization:
             # Quantization: Reduce representational precision
-            x = tf.quantization.fake_quant_with_min_max_args(x, min=-6.0, max=6.0, num_bits=8)
+            x = tf.quantization.fake_quant_with_min_max_args(
+                x, min=-6.0, max=6.0, num_bits=8
+            )
 
         if pruning:
             # Pruning: Introduce sparsity by setting some weights to zero
@@ -116,7 +144,9 @@ class BaseModel(tf.keras.Model):
 
         if clustering:
             # Clustering: Replace parameters with a smaller number of unique values
-            x = tf.keras.layers.experimental.preprocessing.Discretization(bin_boundaries=[-1.0, 0.0, 1.0])(x)
+            x = tf.keras.layers.experimental.preprocessing.Discretization(
+                bin_boundaries=[-1.0, 0.0, 1.0]
+            )(x)
 
         return x
 
@@ -137,5 +167,7 @@ class BaseModel(tf.keras.Model):
         :param n_components: Number of principal components to keep.
         :raises ValueError: If n_components is not a positive integer or None.
         """
-        if n_components is not None and (not isinstance(n_components, int) or n_components <= 0):
+        if n_components is not None and (
+            not isinstance(n_components, int) or n_components <= 0
+        ):
             raise ValueError("n_components must be a positive integer or None.")
