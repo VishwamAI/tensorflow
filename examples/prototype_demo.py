@@ -1,4 +1,10 @@
+import sys
+import os
 import tensorflow as tf
+
+# Add the parent directory to the system path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from ml_models.base_model import BaseModel
 
 
