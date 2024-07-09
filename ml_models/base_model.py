@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 class BaseModel(tf.keras.Model):
-    def __init__(self, advanced_math: bool = False, mlu_optimization: bool = False, apply_matrix_multiplication: bool = False, apply_pca: bool = False, *args, **kwargs):
+    def __init__(self, advanced_math: bool = False, mlu_optimization: bool = False, apply_matrix_multiplication: bool = False, apply_pca: bool = False, apply_quantization: bool = False, apply_pruning: bool = False, apply_clustering: bool = False, *args, **kwargs):
         """
         Initialize the BaseModel with optional advanced math and MLU optimization.
 
@@ -9,12 +9,18 @@ class BaseModel(tf.keras.Model):
         :param mlu_optimization: Whether to apply MLU optimization techniques.
         :param apply_matrix_multiplication: Whether to apply matrix multiplication in advanced math operations.
         :param apply_pca: Whether to apply PCA in advanced math operations.
+        :param apply_quantization: Whether to apply quantization in MLU optimizations.
+        :param apply_pruning: Whether to apply pruning in MLU optimizations.
+        :param apply_clustering: Whether to apply clustering in MLU optimizations.
         """
         super(BaseModel, self).__init__(*args, **kwargs)
         self.advanced_math = advanced_math
         self.mlu_optimization = mlu_optimization
         self.apply_matrix_multiplication = apply_matrix_multiplication
         self.apply_pca = apply_pca
+        self.apply_quantization = apply_quantization
+        self.apply_pruning = apply_pruning
+        self.apply_clustering = apply_clustering
 
     def call(self, inputs: tf.Tensor, training: bool = False, n_components: int = None) -> tf.Tensor:
         """
@@ -29,7 +35,12 @@ class BaseModel(tf.keras.Model):
         if self.advanced_math:
             x = self.advanced_math_operations(x, n_components)
         if self.mlu_optimization:
-            x = self.mlu_optimizations(x)
+            x = self.mlu_optimizations(
+                x,
+                quantization=self.apply_quantization,
+                pruning=self.apply_pruning,
+                clustering=self.apply_clustering
+            )
         return x
 
     def advanced_math_operations(self, x: tf.Tensor, n_components: int = None) -> tf.Tensor:
@@ -82,24 +93,30 @@ class BaseModel(tf.keras.Model):
         x_reduced = tf.matmul(x_centered, eigenvectors)
         return x_reduced
 
-    def mlu_optimizations(self, x: tf.Tensor) -> tf.Tensor:
+    def mlu_optimizations(self, x: tf.Tensor, quantization: bool = False, pruning: bool = False, clustering: bool = False) -> tf.Tensor:
         """
         Apply MLU optimization techniques to the input tensor.
 
         :param x: Input tensor.
+        :param quantization: Whether to apply quantization.
+        :param pruning: Whether to apply pruning.
+        :param clustering: Whether to apply clustering.
         :return: Tensor after applying MLU optimizations.
         """
         # Validate input tensor
         self._validate_tensor(x)
 
-        # Quantization: Reduce representational precision
-        x = tf.quantization.fake_quant_with_min_max_args(x, min=-6.0, max=6.0, num_bits=8)
+        if quantization:
+            # Quantization: Reduce representational precision
+            x = tf.quantization.fake_quant_with_min_max_args(x, min=-6.0, max=6.0, num_bits=8)
 
-        # Pruning: Introduce sparsity by setting some weights to zero
-        x = tf.keras.layers.Dropout(0.5)(x, training=True)
+        if pruning:
+            # Pruning: Introduce sparsity by setting some weights to zero
+            x = tf.keras.layers.Dropout(0.5)(x, training=True)
 
-        # Clustering: Replace parameters with a smaller number of unique values
-        x = tf.keras.layers.experimental.preprocessing.Discretization(bin_boundaries=[-1.0, 0.0, 1.0])(x)
+        if clustering:
+            # Clustering: Replace parameters with a smaller number of unique values
+            x = tf.keras.layers.experimental.preprocessing.Discretization(bin_boundaries=[-1.0, 0.0, 1.0])(x)
 
         return x
 
