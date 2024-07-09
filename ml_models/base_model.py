@@ -151,14 +151,8 @@ class BaseModel(tf.keras.Model):
         """
         clustering_params = {'number_of_clusters': 16, 'cluster_centroids_init': tfmot.clustering.keras.CentroidInitialization.LINEAR}
 
-        if isinstance(model, BaseModel):
-            for layer in model.layers:
-                if hasattr(layer, 'kernel'):
-                    layer.kernel = tfmot.clustering.keras.cluster_weights(layer.kernel, **clustering_params)
-            return model
-        else:
-            clustered_model = tfmot.clustering.keras.cluster_weights(model, **clustering_params)
-            return clustered_model
+        clustered_model = tfmot.clustering.keras.cluster_weights(model, **clustering_params)
+        return clustered_model
 
     def _validate_tensor(self, x: tf.Tensor) -> None:
         """
