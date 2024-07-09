@@ -1,16 +1,20 @@
 import tensorflow as tf
 
 class BaseModel(tf.keras.Model):
-    def __init__(self, advanced_math: bool = False, mlu_optimization: bool = False, *args, **kwargs):
+    def __init__(self, advanced_math: bool = False, mlu_optimization: bool = False, apply_matrix_multiplication: bool = False, apply_pca: bool = False, *args, **kwargs):
         """
         Initialize the BaseModel with optional advanced math and MLU optimization.
 
         :param advanced_math: Whether to apply advanced mathematical operations.
         :param mlu_optimization: Whether to apply MLU optimization techniques.
+        :param apply_matrix_multiplication: Whether to apply matrix multiplication in advanced math operations.
+        :param apply_pca: Whether to apply PCA in advanced math operations.
         """
         super(BaseModel, self).__init__(*args, **kwargs)
         self.advanced_math = advanced_math
         self.mlu_optimization = mlu_optimization
+        self.apply_matrix_multiplication = apply_matrix_multiplication
+        self.apply_pca = apply_pca
 
     def call(self, inputs: tf.Tensor, training: bool = False, n_components: int = None) -> tf.Tensor:
         """
@@ -42,14 +46,17 @@ class BaseModel(tf.keras.Model):
         # Validate n_components parameter
         self._validate_n_components(n_components)
 
-        # Example: Matrix multiplication
-        try:
-            x = tf.linalg.matmul(x, tf.transpose(x))
-        except tf.errors.InvalidArgumentError as e:
-            raise ValueError(f"Matrix multiplication error: {e}")
+        if self.apply_matrix_multiplication:
+            # Example: Matrix multiplication
+            try:
+                x = tf.linalg.matmul(x, tf.transpose(x))
+            except tf.errors.InvalidArgumentError as e:
+                raise ValueError(f"Matrix multiplication error: {e}")
 
-        # Example: Dimensionality reduction using PCA
-        x = self.pca_dimensionality_reduction(x, n_components)
+        if self.apply_pca:
+            # Example: Dimensionality reduction using PCA
+            x = self.pca_dimensionality_reduction(x, n_components)
+
         return x
 
     def pca_dimensionality_reduction(self, x: tf.Tensor, n_components: int = None) -> tf.Tensor:
@@ -89,7 +96,7 @@ class BaseModel(tf.keras.Model):
         # Implement specific MLU optimizations here
         return x
 
-    def _validate_tensor(self, x: tf.Tensor):
+    def _validate_tensor(self, x: tf.Tensor) -> None:
         """
         Validate that the input is a TensorFlow tensor.
 
@@ -99,7 +106,7 @@ class BaseModel(tf.keras.Model):
         if not isinstance(x, tf.Tensor):
             raise ValueError("Input must be a TensorFlow tensor.")
 
-    def _validate_n_components(self, n_components: int):
+    def _validate_n_components(self, n_components: int) -> None:
         """
         Validate the n_components parameter for PCA.
 
