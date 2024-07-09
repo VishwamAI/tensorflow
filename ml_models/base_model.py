@@ -165,8 +165,12 @@ class BaseModel(tf.keras.Model, tfmot.clustering.keras.ClusterableLayer):
         """
         clustering_params = {'number_of_clusters': 16, 'cluster_centroids_init': tfmot.clustering.keras.CentroidInitialization.LINEAR}
 
-        clustered_model = tfmot.clustering.keras.cluster_weights(model, **clustering_params)
-        return clustered_model
+        # Directly apply clustering to the model's clusterable weights
+        for weight_name, weight in self.get_clusterable_weights():
+            clustered_weight = tfmot.clustering.keras.cluster_weights(weight, **clustering_params)
+            setattr(self, weight_name, clustered_weight)
+
+        return self
 
     def _validate_tensor(self, x: tf.Tensor) -> None:
         """
