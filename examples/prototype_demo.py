@@ -1,5 +1,5 @@
 import tensorflow as tf
-from .ml_models.base_model import BaseModel
+from ml_models.base_model import BaseModel
 
 
 def main():
