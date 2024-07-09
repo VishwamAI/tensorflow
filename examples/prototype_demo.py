@@ -1,11 +1,24 @@
 import sys
 import os
 import tensorflow as tf
+import tensorflow_model_optimization as tfmot
 
 # Add the parent directory to the system path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from ml_models.base_model import BaseModel
+
+
+def check_clustering_status(model):
+    clustered = False
+    try:
+        for layer in model.layers:
+            if hasattr(layer, 'kernel') and isinstance(layer.kernel, tfmot.clustering.keras.cluster.ClusterWeights):
+                clustered = True
+                break
+    except AttributeError:
+        pass
+    return clustered
 
 
 def main():
@@ -23,6 +36,10 @@ def main():
     # Apply clustering to the model if enabled
     if model.apply_clustering:
         model = model.apply_clustering_to_model(model)
+
+    # Check clustering status
+    clustering_status = check_clustering_status(model)
+    print("Clustering Applied:", clustering_status)
 
     # Example data for matrix multiplication
     matrix_a = tf.constant([[1, 2], [3, 4]], dtype=tf.float32)
