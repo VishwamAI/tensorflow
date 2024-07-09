@@ -55,6 +55,7 @@ class BaseModel(tf.keras.Model, tfmot.clustering.keras.ClusterableLayer):
         """
         return [('kernel', self.dense_layer.kernel)]
 
+    @tf.function(input_signature=[tf.TensorSpec(shape=[None, None], dtype=tf.float32), tf.TensorSpec(shape=[], dtype=tf.bool), tf.TensorSpec(shape=[], dtype=tf.int32)])
     def call(
         self, inputs: tf.Tensor, training: bool = False, n_components: int = None
     ) -> tf.Tensor:
