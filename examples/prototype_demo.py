@@ -14,14 +14,16 @@ def main():
         apply_clustering=True,
     )
 
+    # Apply clustering to the model if enabled
+    if model.apply_clustering:
+        model = model.apply_clustering_to_model(model)
+
     # Example data for matrix multiplication
     matrix_a = tf.constant([[1, 2], [3, 4]], dtype=tf.float32)
     matrix_b = tf.constant([[5, 6], [7, 8]], dtype=tf.float32)
 
     # Perform matrix multiplication
-    result_matrix_multiplication = model.advanced_math_operations(
-        matrix_a, matrix_b, operation="matrix_multiplication"
-    )
+    result_matrix_multiplication = model.advanced_math_operations(matrix_a)
     print("Matrix Multiplication Result:")
     print(result_matrix_multiplication)
 
@@ -43,7 +45,7 @@ def main():
     )
 
     # Perform PCA
-    result_pca = model.advanced_math_operations(data, n_components=1, operation="pca")
+    result_pca = model.advanced_math_operations(data, n_components=1)
     print("PCA Result:")
     print(result_pca)
 
@@ -55,9 +57,8 @@ def main():
         input_tensor,
         quantization=model.apply_quantization,
         pruning=model.apply_pruning,
-        clustering=model.apply_clustering,
     )
-    print("MLU Optimization (Quantization, Pruning, Clustering) Result:")
+    print("MLU Optimization (Quantization, Pruning) Result:")
     print(result_mlu_optimizations)
 
 

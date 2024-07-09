@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow_model_optimization as tfmot
 
 
 class BaseModel(tf.keras.Model):
@@ -53,7 +54,6 @@ class BaseModel(tf.keras.Model):
                 x,
                 quantization=self.apply_quantization,
                 pruning=self.apply_pruning,
-                clustering=self.apply_clustering,
             )
         return x
 
@@ -118,7 +118,6 @@ class BaseModel(tf.keras.Model):
         x: tf.Tensor,
         quantization: bool = False,
         pruning: bool = False,
-        clustering: bool = False,
     ) -> tf.Tensor:
         """
         Apply MLU optimization techniques to the input tensor.
@@ -126,7 +125,6 @@ class BaseModel(tf.keras.Model):
         :param x: Input tensor.
         :param quantization: Whether to apply quantization.
         :param pruning: Whether to apply pruning.
-        :param clustering: Whether to apply clustering.
         :return: Tensor after applying MLU optimizations.
         """
         # Validate input tensor
@@ -142,13 +140,18 @@ class BaseModel(tf.keras.Model):
             # Pruning: Introduce sparsity by setting some weights to zero
             x = tf.keras.layers.Dropout(0.5)(x, training=True)
 
-        if clustering:
-            # Clustering: Replace parameters with a smaller number of unique values
-            x = tf.keras.layers.experimental.preprocessing.Discretization(
-                bin_boundaries=[-1.0, 0.0, 1.0]
-            )(x)
-
         return x
+
+    def apply_clustering_to_model(self, model: tf.keras.Model) -> tf.keras.Model:
+        """
+        Apply clustering to the model weights.
+
+        :param model: Keras model to apply clustering to.
+        :return: Clustered Keras model.
+        """
+        clustering_params = {'number_of_clusters': 16, 'cluster_centroids_init': tfmot.clustering.keras.CentroidInitialization.LINEAR}
+        clustered_model = tfmot.clustering.keras.cluster_weights(model, **clustering_params)
+        return clustered_model
 
     def _validate_tensor(self, x: tf.Tensor) -> None:
         """
