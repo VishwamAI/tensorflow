@@ -50,7 +50,7 @@ class DataTypeConversions:
     def load_text_to_image_model(self):
         if self.text_to_image_model is None:
             try:
-                self.text_to_image_model = hub.load("https://tfhub.dev/deepmind/biggan-256/2")
+                self.text_to_image_model = hub.load("https://kaggle.com/models/deepmind/biggan/frameworks/TensorFlow1/variations/128/versions/1")
             except Exception as e:
                 print(f"Error loading text-to-image model: {e}")
         return self.text_to_image_model
