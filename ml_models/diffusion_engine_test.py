@@ -1,6 +1,17 @@
 import tensorflow as tf
 from diffusion_engine import DiffusionEngine
 
+class CustomSampler(tf.keras.Model):
+    def __init__(self):
+        super(CustomSampler, self).__init__()
+        self.dense = tf.keras.layers.Dense(784, activation='relu')
+
+    def sample(self, num_samples, conditioning=None):
+        noise = tf.random.normal([num_samples, 100])
+        samples = self.dense(noise)
+        samples = tf.reshape(samples, (-1, 28, 28, 1))
+        return samples
+
 def test_diffusion_engine():
     # Sample configuration for the DiffusionEngine
     network_config = {
@@ -56,16 +67,8 @@ def test_diffusion_engine():
         }
     }
     sampler_config = {
-        "target": "tensorflow.keras.Sequential",
-        "params": {
-            "layers": [
-                tf.keras.layers.InputLayer(input_shape=(28, 28, 1)),
-                tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
-                tf.keras.layers.MaxPooling2D((2, 2)),
-                tf.keras.layers.Flatten(),
-                tf.keras.layers.Dense(10, activation='softmax')
-            ]
-        }
+        "target": "diffusion_engine_test.CustomSampler",
+        "params": {}
     }
     optimizer_config = {
         "target": "tensorflow.keras.optimizers.Adam",
