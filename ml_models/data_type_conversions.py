@@ -34,7 +34,7 @@ class DataTypeConversions:
     def load_text_to_video_model(self):
         if self.text_to_video_model is None:
             try:
-                self.text_to_video_model = hub.load("https://tfhub.dev/google/videobert/1")
+                self.text_to_video_model = hub.load("https://tfhub.dev/deepmind/video-transformer/1")
             except Exception as e:
                 print(f"Error loading text-to-video model: {e}")
         return self.text_to_video_model
@@ -42,7 +42,7 @@ class DataTypeConversions:
     def load_text_to_audio_model(self):
         if self.text_to_audio_model is None:
             try:
-                self.text_to_audio_model = hub.load("https://tfhub.dev/google/tacotron2/1")
+                self.text_to_audio_model = hub.load("https://tfhub.dev/google/tacotron2/2")
             except Exception as e:
                 print(f"Error loading text-to-audio model: {e}")
         return self.text_to_audio_model
@@ -66,7 +66,7 @@ class DataTypeConversions:
     def load_image_to_video_model(self):
         if self.image_to_video_model is None:
             try:
-                self.image_to_video_model = hub.load("https://tfhub.dev/google/videobert/1")
+                self.image_to_video_model = hub.load("https://tfhub.dev/deepmind/video-transformer/1")
             except Exception as e:
                 print(f"Error loading image-to-video model: {e}")
         return self.image_to_video_model
@@ -74,7 +74,7 @@ class DataTypeConversions:
     def load_image_to_audio_model(self):
         if self.image_to_audio_model is None:
             try:
-                self.image_to_audio_model = hub.load("https://tfhub.dev/google/wav2vec2/1")
+                self.image_to_audio_model = hub.load("https://tfhub.dev/google/wav2vec2/2")
             except Exception as e:
                 print(f"Error loading image-to-audio model: {e}")
         return self.image_to_audio_model
@@ -185,14 +185,16 @@ class DataTypeConversions:
 
         model = self.load_image_to_text_model()
         try:
-            text = model(image)
+            predictions = model(image)
             try:
-                # Convert text to numpy array once for performance optimization
-                text_np = text.numpy()
+                # Convert predictions to numpy array once for performance optimization
+                predictions_np = predictions.numpy()
             except Exception as e:
-                print(f"Error converting text to numpy array: {e}")
+                print(f"Error converting predictions to numpy array: {e}")
                 return ""
-            return text_np.decode('utf-8')
+            # Assuming the model output is a classification, return the top prediction
+            top_prediction = np.argmax(predictions_np, axis=-1)
+            return str(top_prediction)
         except Exception as e:
             print(f"Error during image-to-text conversion: {e}")
             return ""
