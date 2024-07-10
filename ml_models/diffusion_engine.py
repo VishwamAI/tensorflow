@@ -90,7 +90,9 @@ class DiffusionEngine(tf.keras.Model):
         Returns:
             tf.Tensor: Decoded tensor.
         """
-        return self.first_stage_model(z)
+        # Reshape the latent tensor to match the expected input shape of the first stage model
+        z_reshaped = tf.reshape(z, (-1, 28, 28, 1))
+        return self.first_stage_model(z_reshaped)
 
     def sample(self, num_samples: int, conditioning=None) -> tf.Tensor:
         """
