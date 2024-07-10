@@ -2,6 +2,26 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import tensorflow_probability as tfp
 import numpy as np
+from scipy.io import wavfile
+from german_transliterate.core import GermanTransliterate
+
+_pad = "pad"
+_eos = "eos"
+_punctuation = "!'(),.? "
+_special = "-"
+_letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+# Export all symbols:
+ALL_SYMBOLS = (
+    [_pad] + list(_special) + list(_punctuation) + list(_letters) + [_eos]
+)
+
+class Processor:
+    def __init__(self):
+        self.symbol_to_id = {s: i for i, s in enumerate(ALL_SYMBOLS)}
+
+    def text_to_sequence(self, text):
+        return [self.symbol_to_id.get(s, self.symbol_to_id[_pad]) for s in text]
 
 class DataTypeConversions:
     def __init__(self):
@@ -163,11 +183,24 @@ class DataTypeConversions:
         if not isinstance(text, str):
             raise ValueError("Input text must be a string.")
 
-        model = self.load_text_to_audio_model()
+        # Preprocess input text
+        text = GermanTransliterate(replace={';': ',', ':': ' '}, sep_abbreviation=' -- ').transliterate(text)
+        processor = Processor()
+        input_ids = processor.text_to_sequence(text)
+
+        # Load models
+        tacotron2 = self.load_text_to_audio_model()
+        mbmelgan = tf.saved_model.load("/path/to/correct/local/mbmelgan/model")
+
         try:
-            # Preprocess input text into the correct tensor format
-            input_tensor = tf.constant([text], dtype=tf.string)
-            audio = model(input_tensor, training=False)
+            # Generate mel spectrograms
+            _, mel_outputs, _, _ = tacotron2.inference(
+                tf.expand_dims(tf.convert_to_tensor(input_ids, dtype=tf.int32), 0),
+                tf.convert_to_tensor([len(input_ids)], dtype=tf.int32),
+                tf.convert_to_tensor([0], dtype=tf.int32)
+            )
+            # Synthesize audio
+            audio = mbmelgan.inference(mel_outputs)[0, :-1024, 0]
             return audio
         except Exception as e:
             print(f"Error during text-to-audio conversion: {e}")
