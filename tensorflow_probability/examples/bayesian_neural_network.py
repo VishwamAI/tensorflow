@@ -96,48 +96,67 @@ def plot_weight_posteriors(names, qm_vals, qs_vals, fname):
     print('saved {}'.format(fname))
 
 
-def plot_heldout_prediction(input_vals, probs,
-                            fname, n=10, title=''):
+def plot_multimodal_heldout_prediction(input_vals, probs,
+                                       fname, n=10, title=''):
     """Save a PNG plot visualizing posterior uncertainty on heldout data.
 
     Args:
-        input_vals: A `float`-like Numpy `array` of shape
-        `[num_heldout] + IMAGE_SHAPE`, containing heldout input images.
+        input_vals: A dictionary containing Numpy `array`s of shape
+        `[num_heldout] + IMAGE_SHAPE` for images, `[num_heldout, 10]` for text,
+        `[num_heldout, 10, 28, 28, 1]` for video, and `[num_heldout, 100]` for audio.
         probs: A `float`-like Numpy array of shape `[num_monte_carlo,
         num_heldout, num_classes]` containing Monte Carlo samples of
         class probabilities for each heldout sample.
         fname: Python `str` filename to save the plot to.
-        n: Python `int` number of datapoints to vizualize.
+        n: Python `int` number of datapoints to visualize.
         title: Python `str` title for the plot.
+        The plot will have 6 columns per sample: Image, Text, Video, Audio, Posterior samples, and Predictive probs.
     """
-    fig = figure.Figure(figsize=(9, 3*n))
+    fig = figure.Figure(figsize=(15, 4*n))
     canvas = backend_agg.FigureCanvasAgg(fig)
     for i in range(n):
-        ax = fig.add_subplot(n, 3, 3*i + 1)
-        ax.imshow(input_vals[i, :].reshape(IMAGE_SHAPE[:-1]), interpolation='None')
+        ax = fig.add_subplot(n, 6, 6*i + 1)
+        ax.imshow(input_vals['images'][i, :].reshape(IMAGE_SHAPE[:-1]), interpolation='None')
+        ax.set_title('Image')
 
-        ax = fig.add_subplot(n, 3, 3*i + 2)
+        ax = fig.add_subplot(n, 6, 6*i + 2)
+        ax.bar(range(10), input_vals['text'][i])
+        ax.set_title('Text')
+
+        ax = fig.add_subplot(n, 6, 6*i + 3)
+        ax.imshow(input_vals['video'][i, 0, :, :, 0], interpolation='None')
+        ax.set_title('Video')
+
+        ax = fig.add_subplot(n, 6, 6*i + 4)
+        ax.plot(input_vals['audio'][i])
+        ax.set_title('Audio')
+
+        ax = fig.add_subplot(n, 6, 6*i + 5)
         for prob_sample in probs:
             sns.barplot(x=np.arange(10), y=prob_sample[i, :], alpha=0.1, ax=ax)
             ax.set_ylim([0, 1])
-        ax.set_title('posterior samples')
+        ax.set_title('Posterior samples')
 
-        ax = fig.add_subplot(n, 3, 3*i + 3)
+        ax = fig.add_subplot(n, 6, 6*i + 6)
         sns.barplot(x=np.arange(10), y=np.mean(probs[:, i, :], axis=0), ax=ax)
         ax.set_ylim([0, 1])
-        ax.set_title('predictive probs')
+        ax.set_title('Predictive probs')
     fig.suptitle(title)
-    fig.tight_layout()
+    fig.tight_layout(pad=2.0)
 
     canvas.print_figure(fname, format='png')
     print('saved {}'.format(fname))
 
 
 def create_model():
-    """Creates a Keras model using the LeNet-5 architecture.
+    """Creates a Keras model using a multi-modal architecture.
+
+    The model takes inputs from four different modalities: images, text, video, and audio.
+    It processes each modality separately using convolutional and dense layers, then combines
+    the features from all modalities and passes them through final classification layers.
 
     Returns:
-        model: Compiled Keras model.
+        model: Compiled Keras model with multi-modal input and output.
     """
     # KL divergence weighted by the number of training samples, using
     # lambda function to pass as input to the kernel_divergence_fn on
@@ -145,45 +164,84 @@ def create_model():
     kl_divergence_function = (lambda q, p, _: tfd.kl_divergence(q, p) /  # pylint: disable=g-long-lambda
                               tf.cast(NUM_TRAIN_EXAMPLES, dtype=tf.float32))
 
-    # Define a LeNet-5 model using three convolutional (with max pooling)
-    # and two fully connected dense layers. We use the Flipout
-    # Monte Carlo estimator for these layers, which enables lower variance
-    # stochastic gradients than naive reparameterization.
-    model = tf_keras.models.Sequential([
+    # Define input layers for each modality
+    image_input = tf_keras.layers.Input(shape=IMAGE_SHAPE, name='image_input')
+    text_input = tf_keras.layers.Input(shape=(10,), name='text_input')
+    video_input = tf_keras.layers.Input(shape=(10, 28, 28, 1), name='video_input')
+    audio_input = tf_keras.layers.Input(shape=(100,), name='audio_input')
+
+    # Define processing layers for each modality
+    image_features = tfp.layers.Convolution2DFlipout(
+        6, kernel_size=5, padding='SAME',
+        kernel_divergence_fn=kl_divergence_function,
+        activation=tf.nn.relu)(image_input)
+    image_features = tf_keras.layers.MaxPooling2D(
+        pool_size=[2, 2], strides=[2, 2],
+        padding='SAME')(image_features)
+    image_features = tfp.layers.Convolution2DFlipout(
+        16, kernel_size=5, padding='SAME',
+        kernel_divergence_fn=kl_divergence_function,
+        activation=tf.nn.relu)(image_features)
+    image_features = tf_keras.layers.MaxPooling2D(
+        pool_size=[2, 2], strides=[2, 2],
+        padding='SAME')(image_features)
+    image_features = tfp.layers.Convolution2DFlipout(
+        120, kernel_size=5, padding='SAME',
+        kernel_divergence_fn=kl_divergence_function,
+        activation=tf.nn.relu)(image_features)
+    image_features = tf_keras.layers.Flatten()(image_features)
+
+    text_features = tfp.layers.DenseFlipout(
+        64, kernel_divergence_fn=kl_divergence_function,
+        activation=tf.nn.relu)(text_input)
+
+    video_features = tf_keras.layers.TimeDistributed(
         tfp.layers.Convolution2DFlipout(
             6, kernel_size=5, padding='SAME',
             kernel_divergence_fn=kl_divergence_function,
-            activation=tf.nn.relu),
+            activation=tf.nn.relu))(video_input)
+    video_features = tf_keras.layers.TimeDistributed(
         tf_keras.layers.MaxPooling2D(
             pool_size=[2, 2], strides=[2, 2],
-            padding='SAME'),
+            padding='SAME'))(video_features)
+    video_features = tf_keras.layers.TimeDistributed(
         tfp.layers.Convolution2DFlipout(
             16, kernel_size=5, padding='SAME',
             kernel_divergence_fn=kl_divergence_function,
-            activation=tf.nn.relu),
+            activation=tf.nn.relu))(video_features)
+    video_features = tf_keras.layers.TimeDistributed(
         tf_keras.layers.MaxPooling2D(
             pool_size=[2, 2], strides=[2, 2],
-            padding='SAME'),
+            padding='SAME'))(video_features)
+    video_features = tf_keras.layers.TimeDistributed(
         tfp.layers.Convolution2DFlipout(
             120, kernel_size=5, padding='SAME',
             kernel_divergence_fn=kl_divergence_function,
-            activation=tf.nn.relu),
-        tf_keras.layers.Flatten(),
-        tfp.layers.DenseFlipout(
-            84, kernel_divergence_fn=kl_divergence_function,
-            activation=tf.nn.relu),
-        tfp.layers.DenseFlipout(
-            NUM_CLASSES, kernel_divergence_fn=kl_divergence_function,
-            activation=tf.nn.softmax)
-    ])
+            activation=tf.nn.relu))(video_features)
+    video_features = tf_keras.layers.TimeDistributed(
+        tf_keras.layers.Flatten())(video_features)
+    video_features = tf_keras.layers.Flatten()(video_features)
 
-    # Model compilation.
+    audio_features = tfp.layers.DenseFlipout(
+        64, kernel_divergence_fn=kl_divergence_function,
+        activation=tf.nn.relu)(audio_input)
+
+    # Combine features from all modalities
+    combined_features = tf_keras.layers.Concatenate()(
+        [image_features, text_features, video_features, audio_features])
+
+    # Add final classification layers
+    combined_features = tfp.layers.DenseFlipout(
+        84, kernel_divergence_fn=kl_divergence_function,
+        activation=tf.nn.relu)(combined_features)
+    output = tfp.layers.DenseFlipout(
+        NUM_CLASSES, kernel_divergence_fn=kl_divergence_function,
+        activation=tf.nn.softmax)(combined_features)
+
+    # Create and compile the model
+    model = tf_keras.models.Model(
+        inputs=[image_input, text_input, video_input, audio_input], outputs=output)
     optimizer = tf_keras.optimizers.Adam(lr=FLAGS.learning_rate)
-    # We use the categorical_crossentropy loss since the MNIST dataset contains
-    # ten labels. The Keras API will then automatically add the
-    # Kullback-Leibler divergence (contained on the individual layers of
-    # the model), to the cross entropy loss, effectively
-    # calcuating the (negated) Evidence Lower Bound Loss (ELBO)
     model.compile(optimizer, loss='categorical_crossentropy',
                   metrics=['accuracy'], experimental_run_tf_function=False)
     return model
@@ -196,18 +254,19 @@ class MNISTSequence(tf_keras.utils.Sequence):
         """Initializes the sequence.
 
         Args:
-            data: Tuple of numpy `array` instances, the first representing images and
-                  the second labels.
+            data: Tuple of numpy `array` instances, the first representing images,
+                  the second representing text, the third representing video,
+                  the fourth representing audio, and the fifth representing labels.
             batch_size: Integer, number of elements in each training batch.
             fake_data_size: Optional integer number of fake datapoints to generate.
         """
         if data:
-            images, labels = data
+            images, text, video, audio, labels = data
         else:
-            images, labels = MNISTSequence.__generate_fake_data(
+            images, text, video, audio, labels = MNISTSequence.__generate_fake_data(
                 num_images=fake_data_size, num_classes=NUM_CLASSES)
-        self.images, self.labels = MNISTSequence.__preprocessing(
-            images, labels)
+        self.images, self.text, self.video, self.audio, self.labels = MNISTSequence.__preprocessing(
+            images, text, video, audio, labels)
         self.batch_size = batch_size
 
     @staticmethod
@@ -220,43 +279,65 @@ class MNISTSequence(tf_keras.utils.Sequence):
         Returns:
             images: Numpy `array` representing the fake image data. The
                     shape of the array will be (num_images, 28, 28).
+            text: Numpy `array` representing the fake text data. The
+                  shape of the array will be (num_images, 10) with random integers.
+            video: Numpy `array` representing the fake video data. The
+                   shape of the array will be (num_images, 10, 28, 28, 1).
+            audio: Numpy `array` representing the fake audio data. The
+                   shape of the array will be (num_images, 100).
             labels: Numpy `array` of integers, where each entry will be
                     assigned a unique integer.
         """
         images = np.random.randint(low=0, high=256,
                                    size=(num_images, IMAGE_SHAPE[0],
                                          IMAGE_SHAPE[1]))
+        text = np.random.randint(low=0, high=256, size=(num_images, 10))
+        video = np.random.randint(low=0, high=256, size=(num_images, 10, 28, 28, 1))
+        audio = np.random.randint(low=0, high=256, size=(num_images, 100))
         labels = np.random.randint(low=0, high=num_classes,
                                    size=num_images)
-        return images, labels
+        return images, text, video, audio, labels
 
     @staticmethod
-    def __preprocessing(images, labels):
-        """Preprocesses image and labels data.
+    def __preprocessing(images, text, video, audio, labels):
+        """Preprocesses image, text, video, audio, and labels data.
 
         Args:
             images: Numpy `array` representing the image data.
+            text: Numpy `array` representing the text data.
+            video: Numpy `array` representing the video data.
+            audio: Numpy `array` representing the audio data.
             labels: Numpy `array` representing the labels data (range 0-9).
 
         Returns:
             images: Numpy `array` representing the image data, normalized
                     and expanded for convolutional network input.
+            text: Numpy `array` representing the preprocessed text data.
+            video: Numpy `array` representing the preprocessed video data.
+            audio: Numpy `array` representing the preprocessed audio data.
             labels: Numpy `array` representing the labels data (range 0-9),
                     as one-hot (categorical) values.
         """
         images = 2 * (images / 255.) - 1.
         images = images[..., tf.newaxis]
 
+        text = text / 255.  # Normalize text data
+        video = 2 * (video / 255.) - 1.  # Normalize video data
+        audio = audio / 255.  # Normalize audio data
+
         labels = tf_keras.utils.to_categorical(labels)
-        return images, labels
+        return images, text, video, audio, labels
 
     def __len__(self):
         return int(tf.math.ceil(len(self.images) / self.batch_size))
 
     def __getitem__(self, idx):
-        batch_x = self.images[idx * self.batch_size: (idx + 1) * self.batch_size]
-        batch_y = self.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
-        return batch_x, batch_y
+        batch_images = self.images[idx * self.batch_size: (idx + 1) * self.batch_size]
+        batch_text = self.text[idx * self.batch_size: (idx + 1) * self.batch_size]
+        batch_video = self.video[idx * self.batch_size: (idx + 1) * self.batch_size]
+        batch_audio = self.audio[idx * self.batch_size: (idx + 1) * self.batch_size]
+        batch_labels = self.labels[idx * self.batch_size: (idx + 1) * self.batch_size]
+        return {'images': batch_images, 'text': batch_text, 'video': batch_video, 'audio': batch_audio}, batch_labels
 
 
 def main(argv):
@@ -287,7 +368,7 @@ def main(argv):
         epoch_accuracy, epoch_loss = [], []
         for step, (batch_x, batch_y) in enumerate(train_seq):
             batch_loss, batch_accuracy = model.train_on_batch(
-                batch_x, batch_y)
+                {'image_input': batch_x['images'], 'text_input': batch_x['text'], 'video_input': batch_x['video'], 'audio_input': batch_x['audio']}, batch_y)
             epoch_accuracy.append(batch_accuracy)
             epoch_loss.append(batch_loss)
 
@@ -304,7 +385,7 @@ def main(argv):
                 #                   ~= 1/n * sum_{i=1}^n p(heldout | model_i)
                 # where model_i is a draw from the posterior p(model|train).
                 print(' ... Running monte carlo inference')
-                probs = tf.stack([model.predict(heldout_seq, verbose=1)
+                probs = tf.stack([model.predict({'image_input': heldout_seq.images, 'text_input': heldout_seq.text, 'video_input': heldout_seq.video, 'audio_input': heldout_seq.audio}, verbose=1)
                                   for _ in range(FLAGS.num_monte_carlo)], axis=0)
                 mean_probs = tf.reduce_mean(probs, axis=0)
                 heldout_log_prob = tf.reduce_mean(tf.math.log(mean_probs))
@@ -324,13 +405,14 @@ def main(argv):
                                                FLAGS.model_dir,
                                                'epoch{}_step{:05d}_weights.png'.format(
                                                    epoch, step)))
-                    plot_heldout_prediction(heldout_seq.images, probs.numpy(),
-                                            fname=os.path.join(
-                                                FLAGS.model_dir,
-                                                'epoch{}_step{}_pred.png'.format(
-                                                    epoch, step)),
-                                            title='mean heldout logprob {:.2f}'
-                                            .format(heldout_log_prob))
+                    plot_multimodal_heldout_prediction(
+                        {'images': heldout_seq.images, 'text': heldout_seq.text, 'video': heldout_seq.video, 'audio': heldout_seq.audio},
+                        probs.numpy(),
+                        fname=os.path.join(
+                            FLAGS.model_dir,
+                            'epoch{}_step{}_pred.png'.format(epoch, step)),
+                        title='mean heldout logprob {:.2f}'.format(heldout_log_prob)
+                    )
 
 
 if __name__ == '__main__':
