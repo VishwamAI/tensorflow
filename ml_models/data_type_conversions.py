@@ -4,6 +4,10 @@ import tensorflow_probability as tfp
 import numpy as np
 from scipy.io import wavfile
 from german_transliterate.core import GermanTransliterate
+import yaml
+from tensorflow_tts.models import TFMelGANGenerator
+from tensorflow_tts.models import TFPQMF
+from tensorflow_tts.configs import MultiBandMelGANGeneratorConfig
 
 _pad = "pad"
 _eos = "eos"
