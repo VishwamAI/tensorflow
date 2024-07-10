@@ -264,6 +264,12 @@ class DataTypeConversions:
             )
             # Synthesize audio
             generated_subbands = mb_melgan(mel_outputs)
+            # Ensure generated_subbands has the correct shape
+            batch_size = tf.shape(generated_subbands)[0]
+            time_steps = tf.shape(generated_subbands)[1]
+            subbands = pqmf.subbands
+            if tf.shape(generated_subbands)[2] != subbands:
+                generated_subbands = tf.reshape(generated_subbands, [batch_size, time_steps // subbands, subbands])
             audio = pqmf.synthesis(generated_subbands)[0, :-1024, 0]
             # Ensure the audio tensor has the correct shape
             audio = tf.pad(audio, [[0, max(0, 16000 - tf.shape(audio)[0])]])  # Pad if necessary

@@ -1,5 +1,11 @@
 import tensorflow as tf
-from diffusion_engine import DiffusionEngine
+import sys
+import os
+
+# Add the project's root directory to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from ml_models.diffusion_engine import DiffusionEngine
 
 class CustomSampler(tf.keras.Model):
     def __init__(self):
