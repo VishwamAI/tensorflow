@@ -109,7 +109,7 @@ class DataTypeConversions:
 
         :param text: Input text.
         :param detailed: Whether to include statistical analysis in the output.
-        :return: A string containing the embeddings as numpy arrays, and optionally the mean and variance of the embeddings.
+        :return: A string containing the embeddings as numpy arrays, and optionally the mean, variance, and other statistics of the embeddings.
         """
         if not isinstance(text, str):
             raise ValueError("Input text must be a string.")
@@ -130,9 +130,13 @@ class DataTypeConversions:
                 try:
                     # Perform statistical analysis on embeddings using TensorFlow Probability
                     mean, variance = tfp.stats.mean(embeddings), tfp.stats.variance(embeddings)
-                    # Convert mean and variance to numpy arrays once for performance optimization
+                    stddev = tfp.stats.stddev(embeddings)
+                    skewness = tfp.stats.skewness(embeddings)
+                    kurtosis = tfp.stats.kurtosis(embeddings)
+                    # Convert statistics to numpy arrays once for performance optimization
                     mean_np, variance_np = mean.numpy(), variance.numpy()
-                    return f"Embeddings: {embeddings_np}, Mean: {mean_np}, Variance: {variance_np}"
+                    stddev_np, skewness_np, kurtosis_np = stddev.numpy(), skewness.numpy(), kurtosis.numpy()
+                    return f"Embeddings: {embeddings_np}, Mean: {mean_np}, Variance: {variance_np}, StdDev: {stddev_np}, Skewness: {skewness_np}, Kurtosis: {kurtosis_np}"
                 except Exception as tfp_error:
                     # Fallback to embeddings-only output if statistical analysis fails
                     print(f"Error during statistical analysis with TensorFlow Probability: {tfp_error}")
