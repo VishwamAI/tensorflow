@@ -9,6 +9,8 @@ class DiffusionEngine(tf.keras.Model):
         self.model = self.instantiate_from_config(network_config)
         self.denoiser = self.instantiate_from_config(denoiser_config)
         self.sampler = self.instantiate_from_config(sampler_config) if sampler_config is not None else None
+        if self.sampler is not None and not hasattr(self.sampler, 'sample'):
+            raise ValueError(f"The instantiated sampler from config {sampler_config} does not have a 'sample' method.")
         self.conditioner = self.instantiate_from_config(conditioner_config or {"target": "UnconditionalConfig"})
         self.scheduler_config = scheduler_config
         self._init_first_stage(first_stage_config)
@@ -47,7 +49,9 @@ class DiffusionEngine(tf.keras.Model):
         module_path, class_name = target_class.rsplit(".", 1)
         module = __import__(module_path, fromlist=[class_name])
         target_class = getattr(module, class_name)
-        return target_class(**params)
+        instance = target_class(**params)
+
+        return instance
 
     def _init_first_stage(self, config: dict):
         """
