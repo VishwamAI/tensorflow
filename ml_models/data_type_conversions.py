@@ -3,7 +3,15 @@ import tensorflow_hub as hub
 
 class DataTypeConversions:
     def __init__(self):
-        pass
+        # Initialize pre-trained models
+        self.text_to_text_model = hub.load("https://tfhub.dev/google/universal-sentence-encoder/4")
+        self.text_to_image_model = hub.load("https://tfhub.dev/deepmind/biggan-256/2")
+        self.text_to_video_model = hub.load("https://tfhub.dev/google/videobert/1")
+        self.text_to_audio_model = hub.load("https://tfhub.dev/google/tacotron2/1")
+        self.image_to_text_model = hub.load("https://tfhub.dev/google/imagenet/inception_v3/classification/4")
+        self.image_to_image_model = hub.load("https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2")
+        self.image_to_video_model = hub.load("https://tfhub.dev/google/videobert/1")
+        self.image_to_audio_model = hub.load("https://tfhub.dev/google/wav2vec2/1")
 
     def text_to_text(self, text: str) -> str:
         """
@@ -12,9 +20,7 @@ class DataTypeConversions:
         :param text: Input text.
         :return: Transformed text.
         """
-        # Example: Using a pre-trained model from TensorFlow Hub
-        model = hub.load("https://tfhub.dev/google/universal-sentence-encoder/4")
-        embeddings = model([text])
+        embeddings = self.text_to_text_model([text])
         return embeddings.numpy()
 
     def text_to_image(self, text: str) -> tf.Tensor:
@@ -24,12 +30,8 @@ class DataTypeConversions:
         :param text: Input text.
         :return: Generated image tensor.
         """
-        # Placeholder for text-to-image conversion logic
-        # Example: Using a pre-trained model from TensorFlow Hub
-        # Note: This is a placeholder and may not represent an actual model
-        model = hub.load("https://tfhub.dev/deepmind/biggan-256/2")
         noise = tf.random.normal([1, 128])
-        image = model([noise, text])
+        image = self.text_to_image_model([noise, text])
         return image
 
     def text_to_video(self, text: str) -> tf.Tensor:
@@ -39,11 +41,7 @@ class DataTypeConversions:
         :param text: Input text.
         :return: Generated video tensor.
         """
-        # Placeholder for text-to-video conversion logic
-        # Example: Using a pre-trained model from TensorFlow Hub
-        # Note: This is a placeholder and may not represent an actual model
-        model = hub.load("https://tfhub.dev/google/videobert/1")
-        video = model([text])
+        video = self.text_to_video_model([text])
         return video
 
     def text_to_audio(self, text: str) -> tf.Tensor:
@@ -53,10 +51,7 @@ class DataTypeConversions:
         :param text: Input text.
         :return: Generated audio tensor.
         """
-        # Placeholder for text-to-audio conversion logic
-        # Example: Using a pre-trained model from TensorFlow Hub
-        model = hub.load("https://tfhub.dev/google/tacotron2/1")
-        audio = model([text])
+        audio = self.text_to_audio_model([text])
         return audio
 
     def image_to_text(self, image: tf.Tensor) -> str:
@@ -66,10 +61,7 @@ class DataTypeConversions:
         :param image: Input image tensor.
         :return: Extracted text.
         """
-        # Placeholder for image-to-text conversion logic
-        # Example: Using a pre-trained model from TensorFlow Hub
-        model = hub.load("https://tfhub.dev/google/imagenet/inception_v3/classification/4")
-        text = model(image)
+        text = self.image_to_text_model(image)
         return text.numpy()
 
     def image_to_image(self, image: tf.Tensor) -> tf.Tensor:
@@ -79,10 +71,7 @@ class DataTypeConversions:
         :param image: Input image tensor.
         :return: Transformed image tensor.
         """
-        # Placeholder for image-to-image conversion logic
-        # Example: Using a pre-trained model from TensorFlow Hub
-        model = hub.load("https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2")
-        stylized_image = model([image, image])
+        stylized_image = self.image_to_image_model([image, image])
         return stylized_image
 
     def image_to_video(self, image: tf.Tensor) -> tf.Tensor:
@@ -92,11 +81,7 @@ class DataTypeConversions:
         :param image: Input image tensor.
         :return: Generated video tensor.
         """
-        # Placeholder for image-to-video conversion logic
-        # Example: Using a pre-trained model from TensorFlow Hub
-        # Note: This is a placeholder and may not represent an actual model
-        model = hub.load("https://tfhub.dev/google/videobert/1")
-        video = model([image])
+        video = self.image_to_video_model([image])
         return video
 
     def image_to_audio(self, image: tf.Tensor) -> tf.Tensor:
@@ -106,8 +91,5 @@ class DataTypeConversions:
         :param image: Input image tensor.
         :return: Generated audio tensor.
         """
-        # Placeholder for image-to-audio conversion logic
-        # Example: Using a pre-trained model from TensorFlow Hub
-        model = hub.load("https://tfhub.dev/google/wav2vec2/1")
-        audio = model([image])
+        audio = self.image_to_audio_model([image])
         return audio
