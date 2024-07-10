@@ -194,8 +194,13 @@ class DataTypeConversions:
 
         # Load models
         tacotron2 = self.load_text_to_audio_model()
-        mbmelgan = tf.saved_model.load("/home/ubuntu/tensorflow/models/mbmelgan")
-        pqmf = tf.saved_model.load("/home/ubuntu/tensorflow/models/pqmf")
+        config_path = "/home/ubuntu/tensorflow/models/TensorFlowTTS/examples/multiband_melgan/conf/multiband_melgan.v1.yaml"
+        with open(config_path) as f:
+            config = yaml.load(f, Loader=yaml.Loader)
+        mb_melgan = TFMelGANGenerator(config=MultiBandMelGANGeneratorConfig(**config["multiband_melgan_generator_params"]))
+        mb_melgan._build()
+        mb_melgan.load_weights("/home/ubuntu/tensorflow/models/TensorFlowTTS/examples/multiband_melgan/exp/train.multiband_melgan.v1/checkpoints/generator-940000.h5")
+        pqmf = TFPQMF(config=MultiBandMelGANGeneratorConfig(**config["multiband_melgan_generator_params"]))
 
         try:
             # Generate mel spectrograms
@@ -205,7 +210,7 @@ class DataTypeConversions:
                 tf.convert_to_tensor([0], dtype=tf.int32)
             )
             # Synthesize audio
-            generated_subbands = mbmelgan(mel_outputs)
+            generated_subbands = mb_melgan(mel_outputs)
             audio = pqmf.synthesis(generated_subbands)[0, :-1024, 0]
             return audio
         except Exception as e:
