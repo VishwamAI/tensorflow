@@ -201,7 +201,6 @@ class DataTypeConversions:
         input_ids = processor.text_to_sequence(text)
 
         # Ensure input tensor has the correct shape and type
-        input_ids = input_ids[:9] + [0] * (9 - len(input_ids))  # Pad or truncate to length 9
         input_tensor = tf.constant([input_ids], dtype=tf.int32)
 
         # Load models
