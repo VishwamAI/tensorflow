@@ -162,6 +162,25 @@ class DataTypeConversions:
             print(f"Error during text-to-image conversion: {e}")
             return tf.zeros([1, 256, 256, 3])  # Return a placeholder tensor on error
 
+    def text_to_class_vector(self, text: str) -> tf.Tensor:
+        """
+        Convert text description to class vector for BigGAN model.
+
+        :param text: Input text description.
+        :return: Class vector tensor.
+        """
+        # Placeholder mapping from text to class index
+        class_mapping = {
+            "dog": 207,
+            "cat": 281,
+            "car": 817,
+            "tree": 334,
+            "flower": 985
+        }
+        class_index = class_mapping.get(text.lower(), 0)  # Default to 0 if text not found
+        class_vector = tf.one_hot([class_index], depth=1000)  # BigGAN uses 1000 classes
+        return class_vector
+
     def text_to_video(self, text: str) -> tf.Tensor:
         """
         Convert text to video using a pre-trained model.
