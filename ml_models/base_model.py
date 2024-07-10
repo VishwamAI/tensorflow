@@ -12,6 +12,8 @@ class BaseModel(tf.keras.Model, tfmot.clustering.keras.ClusterableLayer):
         apply_quantization: bool = False,
         apply_pruning: bool = False,
         apply_clustering: bool = False,
+        apply_svd: bool = False,
+        apply_fft: bool = False,
         *args,
         **kwargs,
     ):
@@ -34,6 +36,8 @@ class BaseModel(tf.keras.Model, tfmot.clustering.keras.ClusterableLayer):
         self.apply_quantization = apply_quantization
         self.apply_pruning = apply_pruning
         self.apply_clustering = apply_clustering
+        self.apply_svd = apply_svd
+        self.apply_fft = apply_fft
 
         # Example clusterable layer
         self.dense_layer = tf.keras.layers.Dense(10)
@@ -107,6 +111,16 @@ class BaseModel(tf.keras.Model, tfmot.clustering.keras.ClusterableLayer):
         if self.apply_pca:
             # Example: Dimensionality reduction using PCA
             x = self.pca_dimensionality_reduction(x, n_components)
+
+        if self.apply_svd:
+            # Example: Singular Value Decomposition (SVD)
+            s, u, v = tf.linalg.svd(x)
+            x = tf.matmul(u, tf.linalg.diag(s))
+
+        if self.apply_fft:
+            # Example: Fast Fourier Transform (FFT)
+            x = tf.signal.fft(tf.cast(x, tf.complex64))
+            x = tf.math.real(x)
 
         return x
 
