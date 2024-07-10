@@ -103,9 +103,42 @@ The `DiffusionEngine` class in the PyTorch implementation serves as the core of 
    - Use TensorFlow's logging utilities to implement methods for logging images and conditionings.
    - Integrate the logging methods into the `DiffusionEngine` class.
 
+## Integrate Image Captioning Functionality
+1. **Setup Environment**
+   - Ensure all necessary packages are installed, including TensorFlow, TensorFlow Text, TensorFlow Datasets, and einops.
+   - Create a new file `image_captioning.py` in the `ml_models` directory.
+
+2. **Define Image Captioning Model**
+   - Implement the image captioning model architecture using a 2-layer Transformer-decoder.
+   - Define the model class and necessary methods for feature extraction, attention, and caption generation.
+
+3. **Data Preparation**
+   - Implement functions to load and preprocess the dataset.
+   - Extract and cache image features for efficient training.
+
+4. **Training Loop**
+   - Define the training loop using TensorFlow's `tf.GradientTape`.
+   - Implement methods to train the model and log the training progress.
+
+5. **Caption Generation**
+   - Implement methods to generate captions for new images using the trained model.
+   - Integrate attention visualization to show which parts of the image the model is focusing on during caption generation.
+
+6. **Testing and Validation**
+   - Implement test cases to validate the functionality of the image captioning model.
+   - Ensure the model performs well on a variety of images and generates accurate captions.
+
+7. **Integration with DiffusionEngine**
+   - Integrate the image captioning functionality into the `DiffusionEngine` class.
+   - Ensure seamless interaction between the image captioning model and other components of the `DiffusionEngine`.
+
 ## Next Steps
 1. Create the `diffusion_engine.py` file and define the `DiffusionEngine` class.
 2. Implement the `__init__` and `call` methods in the `DiffusionEngine` class.
 3. Proceed with implementing the denoiser, sampler, conditioner, first stage model, loss function, optimizer, scheduler, training loop, and logging methods as outlined in the detailed steps.
+4. Create the `image_captioning.py` file and define the image captioning model class.
+5. Implement the data preparation functions and training loop.
+6. Integrate the caption generation methods and attention visualization.
+7. Validate the functionality with test cases and integrate with the `DiffusionEngine` class.
 
 By following this plan, we can systematically adapt the `DiffusionEngine` class and its components to TensorFlow, ensuring that our TensorFlow alternative is both efficient and scalable.

@@ -2,6 +2,26 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import tensorflow_probability as tfp
 import numpy as np
+from scipy.io import wavfile
+from german_transliterate.core import GermanTransliterate
+
+_pad = "pad"
+_eos = "eos"
+_punctuation = "!'(),.? "
+_special = "-"
+_letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+# Export all symbols:
+ALL_SYMBOLS = (
+    [_pad] + list(_special) + list(_punctuation) + list(_letters) + [_eos]
+)
+
+class Processor:
+    def __init__(self):
+        self.symbol_to_id = {s: i for i, s in enumerate(ALL_SYMBOLS)}
+
+    def text_to_sequence(self, text):
+        return [self.symbol_to_id.get(s, self.symbol_to_id[_pad]) for s in text]
 
 class DataTypeConversions:
     def __init__(self):
@@ -13,12 +33,12 @@ class DataTypeConversions:
         self.image_to_text_model = None
         self.image_to_image_model = None
         self.image_to_video_model = None
-        self.image_to_audio_model = None
+        self.image_captioning_model = None
 
     def load_text_to_text_model(self):
         if self.text_to_text_model is None:
             try:
-                self.text_to_text_model = hub.load("https://tfhub.dev/google/universal-sentence-encoder/4")
+                self.text_to_text_model = hub.KerasLayer("https://www.kaggle.com/models/google/universal-sentence-encoder/TensorFlow2/cmlm-en-base/1")
             except Exception as e:
                 print(f"Error loading text-to-text model: {e}")
         return self.text_to_text_model
@@ -42,7 +62,7 @@ class DataTypeConversions:
     def load_text_to_audio_model(self):
         if self.text_to_audio_model is None:
             try:
-                self.text_to_audio_model = hub.load("https://tfhub.dev/google/tacotron2/2")
+                self.text_to_audio_model = hub.load("https://tfhub.dev/monatis/german-tacotron2/1")
             except Exception as e:
                 print(f"Error loading text-to-audio model: {e}")
         return self.text_to_audio_model
@@ -71,14 +91,6 @@ class DataTypeConversions:
                 print(f"Error loading image-to-video model: {e}")
         return self.image_to_video_model
 
-    def load_image_to_audio_model(self):
-        if self.image_to_audio_model is None:
-            try:
-                self.image_to_audio_model = hub.load("https://tfhub.dev/vasudevgupta7/wav2vec2-960h/1")
-            except Exception as e:
-                print(f"Error loading image-to-audio model: {e}")
-        return self.image_to_audio_model
-
     def text_to_text(self, text: str, detailed: bool = True) -> str:
         """
         Convert text to text using a pre-trained language model.
@@ -92,7 +104,13 @@ class DataTypeConversions:
 
         model = self.load_text_to_text_model()
         try:
-            embeddings = model([text])
+            # Prepare input as a dictionary with required keys
+            inputs = {
+                'input_word_ids': tf.constant([[text]]),
+                'input_mask': tf.constant([[1]]),
+                'input_type_ids': tf.constant([[0]])
+            }
+            embeddings = model(inputs, training=False)
             try:
                 # Convert embeddings to numpy array once for performance optimization
                 embeddings_np = embeddings.numpy()
@@ -165,9 +183,30 @@ class DataTypeConversions:
         if not isinstance(text, str):
             raise ValueError("Input text must be a string.")
 
-        model = self.load_text_to_audio_model()
+        # Preprocess input text
+        text = GermanTransliterate(replace={';': ',', ':': ' '}, sep_abbreviation=' -- ').transliterate(text)
+        processor = Processor()
+        input_ids = processor.text_to_sequence(text)
+
+        # Ensure input tensor has the correct shape and type
+        input_ids = input_ids[:9] + [0] * (9 - len(input_ids))  # Pad or truncate to length 9
+        input_tensor = tf.constant([input_ids], dtype=tf.int32)
+
+        # Load models
+        tacotron2 = self.load_text_to_audio_model()
+        mbmelgan = tf.saved_model.load("/home/ubuntu/tensorflow/models/mbmelgan")
+        pqmf = tf.saved_model.load("/home/ubuntu/tensorflow/models/pqmf")
+
         try:
-            audio = model([text])
+            # Generate mel spectrograms
+            _, mel_outputs, _, _ = tacotron2.inference(
+                input_tensor,
+                tf.convert_to_tensor([len(input_ids)], dtype=tf.int32),
+                tf.convert_to_tensor([0], dtype=tf.int32)
+            )
+            # Synthesize audio
+            generated_subbands = mbmelgan(mel_outputs)
+            audio = pqmf.synthesis(generated_subbands)[0, :-1024, 0]
             return audio
         except Exception as e:
             print(f"Error during text-to-audio conversion: {e}")
@@ -245,7 +284,8 @@ class DataTypeConversions:
 
     def image_to_audio(self, image: tf.Tensor) -> tf.Tensor:
         """
-        Convert image to audio using a pre-trained model.
+        Convert image to audio by first generating a text description of the image
+        and then converting the text description to audio using a pre-trained model.
 
         :param image: Input image tensor.
         :return: Generated audio tensor.
@@ -253,10 +293,14 @@ class DataTypeConversions:
         if not isinstance(image, tf.Tensor):
             raise ValueError("Input image must be a tensor.")
 
-        model = self.load_image_to_audio_model()
+        # Placeholder for image captioning step
+        caption = "This is a placeholder caption for the input image."
+
+        # Use the text-to-audio model (Tacotron2) to convert the caption to audio
+        model = self.load_text_to_audio_model()
         try:
-            audio = model([image])
+            audio = model([caption])
             return audio
         except Exception as e:
-            print(f"Error during image-to-audio conversion: {e}")
+            print(f"Error during text-to-audio conversion: {e}")
             return tf.zeros([1, 16000])  # Return a placeholder tensor on error

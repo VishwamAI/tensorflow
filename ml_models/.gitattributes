@@ -1,0 +1,2 @@
+checkpoints/generator-940000.h5 filter=lfs diff=lfs merge=lfs -text
+checkpoints/discriminator-940000.h5 filter=lfs diff=lfs merge=lfs -text
