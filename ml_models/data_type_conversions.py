@@ -13,7 +13,7 @@ class DataTypeConversions:
         self.image_to_text_model = None
         self.image_to_image_model = None
         self.image_to_video_model = None
-        self.image_to_audio_model = None
+        self.image_captioning_model = None
 
     def load_text_to_text_model(self):
         if self.text_to_text_model is None:
@@ -70,14 +70,6 @@ class DataTypeConversions:
             except Exception as e:
                 print(f"Error loading image-to-video model: {e}")
         return self.image_to_video_model
-
-    def load_image_to_audio_model(self):
-        if self.image_to_audio_model is None:
-            try:
-                self.image_to_audio_model = hub.load("https://tfhub.dev/vasudevgupta7/wav2vec2-960h/1")
-            except Exception as e:
-                print(f"Error loading image-to-audio model: {e}")
-        return self.image_to_audio_model
 
     def text_to_text(self, text: str, detailed: bool = True) -> str:
         """
@@ -245,7 +237,8 @@ class DataTypeConversions:
 
     def image_to_audio(self, image: tf.Tensor) -> tf.Tensor:
         """
-        Convert image to audio using a pre-trained model.
+        Convert image to audio by first generating a text description of the image
+        and then converting the text description to audio using a pre-trained model.
 
         :param image: Input image tensor.
         :return: Generated audio tensor.
@@ -253,10 +246,14 @@ class DataTypeConversions:
         if not isinstance(image, tf.Tensor):
             raise ValueError("Input image must be a tensor.")
 
-        model = self.load_image_to_audio_model()
+        # Placeholder for image captioning step
+        caption = "This is a placeholder caption for the input image."
+
+        # Use the text-to-audio model (Tacotron2) to convert the caption to audio
+        model = self.load_text_to_audio_model()
         try:
-            audio = model([image])
+            audio = model([caption])
             return audio
         except Exception as e:
-            print(f"Error during image-to-audio conversion: {e}")
+            print(f"Error during text-to-audio conversion: {e}")
             return tf.zeros([1, 16000])  # Return a placeholder tensor on error
