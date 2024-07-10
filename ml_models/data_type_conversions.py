@@ -1,5 +1,6 @@
 import tensorflow as tf
 import tensorflow_hub as hub
+import tensorflow_probability as tfp
 import numpy as np
 
 class DataTypeConversions:
@@ -78,12 +79,13 @@ class DataTypeConversions:
                 print(f"Error loading image-to-audio model: {e}")
         return self.image_to_audio_model
 
-    def text_to_text(self, text: str) -> str:
+    def text_to_text(self, text: str, detailed: bool = True) -> str:
         """
         Convert text to text using a pre-trained language model.
 
         :param text: Input text.
-        :return: Transformed text.
+        :param detailed: Whether to include statistical analysis in the output.
+        :return: A string containing the embeddings as numpy arrays, and optionally the mean and variance of the embeddings.
         """
         if not isinstance(text, str):
             raise ValueError("Input text must be a string.")
@@ -91,8 +93,26 @@ class DataTypeConversions:
         model = self.load_text_to_text_model()
         try:
             embeddings = model([text])
-            return str(embeddings.numpy())
+            try:
+                # Convert embeddings to numpy array once for performance optimization
+                embeddings_np = embeddings.numpy()
+            except Exception as e:
+                print(f"Error converting embeddings to numpy array: {e}")
+                return ""
+
+            if detailed:
+                try:
+                    # Perform statistical analysis on embeddings using TensorFlow Probability
+                    mean, variance = tfp.stats.mean(embeddings), tfp.stats.variance(embeddings)
+                    # Convert mean and variance to numpy arrays once for performance optimization
+                    mean_np, variance_np = mean.numpy(), variance.numpy()
+                    return f"Embeddings: {embeddings_np}, Mean: {mean_np}, Variance: {variance_np}"
+                except Exception as tfp_error:
+                    # Fallback to embeddings-only output if statistical analysis fails
+                    print(f"Error during statistical analysis with TensorFlow Probability: {tfp_error}")
+            return f"Embeddings: {embeddings_np}"
         except Exception as e:
+            # Handle errors during text-to-text conversion
             print(f"Error during text-to-text conversion: {e}")
             return ""
 
@@ -158,7 +178,7 @@ class DataTypeConversions:
         Convert image to text using a pre-trained model.
 
         :param image: Input image tensor.
-        :return: Extracted text.
+        :return: Extracted text or an empty string on error.
         """
         if not isinstance(image, tf.Tensor):
             raise ValueError("Input image must be a tensor.")
@@ -166,7 +186,13 @@ class DataTypeConversions:
         model = self.load_image_to_text_model()
         try:
             text = model(image)
-            return text.numpy().decode('utf-8')
+            try:
+                # Convert text to numpy array once for performance optimization
+                text_np = text.numpy()
+            except Exception as e:
+                print(f"Error converting text to numpy array: {e}")
+                return ""
+            return text_np.decode('utf-8')
         except Exception as e:
             print(f"Error during image-to-text conversion: {e}")
             return ""
@@ -176,7 +202,7 @@ class DataTypeConversions:
         Convert image to image using a pre-trained model.
 
         :param image: Input image tensor.
-        :return: Transformed image as a numpy array.
+        :return: Transformed image as a numpy array or a placeholder array on error.
         """
         if not isinstance(image, tf.Tensor):
             raise ValueError("Input image must be a tensor.")
@@ -184,7 +210,13 @@ class DataTypeConversions:
         model = self.load_image_to_image_model()
         try:
             stylized_image = model([image, image])
-            return stylized_image.numpy()
+            try:
+                # Convert stylized image to numpy array once for performance optimization
+                stylized_image_np = stylized_image.numpy()
+            except Exception as e:
+                print(f"Error converting stylized image to numpy array: {e}")
+                return np.zeros(image.shape)  # Return a placeholder array on error
+            return stylized_image_np
         except Exception as e:
             print(f"Error during image-to-image conversion: {e}")
             return np.zeros(image.shape)  # Return a placeholder array on error
