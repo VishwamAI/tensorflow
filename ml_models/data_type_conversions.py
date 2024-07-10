@@ -156,7 +156,7 @@ class DataTypeConversions:
         noise = tf.random.normal([1, 128])
         class_vector = self.text_to_class_vector(text)
         try:
-            image = model([noise, class_vector])
+            image = model([noise, class_vector], training=False)
             return image
         except Exception as e:
             print(f"Error during text-to-image conversion: {e}")
