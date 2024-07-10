@@ -333,8 +333,11 @@ class DataTypeConversions:
         captioning_model = self.load_image_captioning_model()
         try:
             # Generate a caption for the input image
-            caption = captioning_model(image)
-            caption = caption.numpy().decode('utf-8')  # Convert to string with decode
+            predictions = captioning_model(image)
+            predictions_np = predictions.numpy()
+            # Map the predicted class indices to their corresponding labels
+            top_prediction = np.argmax(predictions_np, axis=-1)
+            caption = str(top_prediction)
         except Exception as e:
             print(f"Error during image captioning: {e}")
             return tf.zeros([1, 16000])  # Return a placeholder tensor on error
