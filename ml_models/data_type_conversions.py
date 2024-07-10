@@ -195,6 +195,7 @@ class DataTypeConversions:
         # Load models
         tacotron2 = self.load_text_to_audio_model()
         mbmelgan = tf.saved_model.load("/home/ubuntu/tensorflow/models/mbmelgan")
+        pqmf = tf.saved_model.load("/home/ubuntu/tensorflow/models/pqmf")
 
         try:
             # Generate mel spectrograms
@@ -204,7 +205,8 @@ class DataTypeConversions:
                 tf.convert_to_tensor([0], dtype=tf.int32)
             )
             # Synthesize audio
-            audio = mbmelgan.inference(mel_outputs)[0, :-1024, 0]
+            generated_subbands = mbmelgan(mel_outputs)
+            audio = pqmf.synthesis(generated_subbands)[0, :-1024, 0]
             return audio
         except Exception as e:
             print(f"Error during text-to-audio conversion: {e}")
