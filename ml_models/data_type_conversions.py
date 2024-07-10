@@ -188,14 +188,18 @@ class DataTypeConversions:
         processor = Processor()
         input_ids = processor.text_to_sequence(text)
 
+        # Ensure input tensor has the correct shape and type
+        input_ids = input_ids[:9] + [0] * (9 - len(input_ids))  # Pad or truncate to length 9
+        input_tensor = tf.constant([input_ids], dtype=tf.int32)
+
         # Load models
         tacotron2 = self.load_text_to_audio_model()
-        mbmelgan = tf.saved_model.load("/path/to/correct/local/mbmelgan/model")
+        mbmelgan = tf.saved_model.load("/home/ubuntu/tensorflow/models/mbmelgan")
 
         try:
             # Generate mel spectrograms
             _, mel_outputs, _, _ = tacotron2.inference(
-                tf.expand_dims(tf.convert_to_tensor(input_ids, dtype=tf.int32), 0),
+                input_tensor,
                 tf.convert_to_tensor([len(input_ids)], dtype=tf.int32),
                 tf.convert_to_tensor([0], dtype=tf.int32)
             )
