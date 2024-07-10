@@ -170,12 +170,12 @@ class DataTypeConversions:
             print(f"Error during image-to-text conversion: {e}")
             return ""
 
-    def image_to_image(self, image: tf.Tensor) -> tf.Tensor:
+    def image_to_image(self, image: tf.Tensor) -> np.ndarray:
         """
         Convert image to image using a pre-trained model.
 
         :param image: Input image tensor.
-        :return: Transformed image tensor.
+        :return: Transformed image as a numpy array.
         """
         if not isinstance(image, tf.Tensor):
             raise ValueError("Input image must be a tensor.")
@@ -183,10 +183,10 @@ class DataTypeConversions:
         model = self.load_image_to_image_model()
         try:
             stylized_image = model([image, image])
-            return stylized_image
+            return stylized_image.numpy()
         except Exception as e:
             print(f"Error during image-to-image conversion: {e}")
-            return tf.zeros_like(image)  # Return a placeholder tensor on error
+            return np.zeros(image.shape)  # Return a placeholder array on error
 
     def image_to_video(self, image: tf.Tensor) -> tf.Tensor:
         """
