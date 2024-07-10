@@ -143,7 +143,7 @@ class DataTypeConversions:
                 embeddings_np = embeddings.numpy()
             except Exception as e:
                 print(f"Error converting embeddings to numpy array: {e}")
-                return ""
+                return f"Error converting embeddings to numpy array: {e}"
 
             if detailed:
                 try:
@@ -159,11 +159,12 @@ class DataTypeConversions:
                 except Exception as tfp_error:
                     # Fallback to embeddings-only output if statistical analysis fails
                     print(f"Error during statistical analysis with TensorFlow Probability: {tfp_error}")
+                    return f"Embeddings: {embeddings_np}, Error during statistical analysis: {tfp_error}"
             return f"Embeddings: {embeddings_np}"
         except Exception as e:
             # Handle errors during text-to-text conversion
             print(f"Error during text-to-text conversion: {e}")
-            return ""
+            return f"Error during text-to-text conversion: {e}"
 
     def text_to_image(self, text: str) -> tf.Tensor:
         """
