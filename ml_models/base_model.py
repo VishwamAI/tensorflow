@@ -38,6 +38,15 @@ class BaseModel(tf.keras.Model, tfmot.clustering.keras.ClusterableLayer):
         # Example clusterable layer
         self.dense_layer = tf.keras.layers.Dense(10)
 
+    def build(self, input_shape):
+        """
+        Build the model and its layers.
+
+        :param input_shape: Shape of the input tensor.
+        """
+        self.dense_layer.build(input_shape)
+        super(BaseModel, self).build(input_shape)
+
     def get_clusterable_weights(self):
         """
         Return a list of clusterable weight tensors.
@@ -46,6 +55,7 @@ class BaseModel(tf.keras.Model, tfmot.clustering.keras.ClusterableLayer):
         """
         return [('kernel', self.dense_layer.kernel)]
 
+    @tf.function(input_signature=[tf.TensorSpec(shape=[None, None], dtype=tf.float32), tf.TensorSpec(shape=[], dtype=tf.bool), tf.TensorSpec(shape=[], dtype=tf.int32)])
     def call(
         self, inputs: tf.Tensor, training: bool = False, n_components: int = None
     ) -> tf.Tensor:

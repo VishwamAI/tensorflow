@@ -33,6 +33,9 @@ def main():
         apply_clustering=True,
     )
 
+    # Build the model to ensure all layers are initialized
+    model.build(input_shape=(None, 2))
+
     # Apply clustering to the model if enabled
     if model.apply_clustering:
         model = model.apply_clustering_to_model(model)
