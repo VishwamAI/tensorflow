@@ -42,7 +42,7 @@ class DataTypeConversions:
     def load_text_to_audio_model(self):
         if self.text_to_audio_model is None:
             try:
-                self.text_to_audio_model = hub.load("https://tfhub.dev/google/tacotron2/2")
+                self.text_to_audio_model = hub.load("https://tfhub.dev/monatis/german-tacotron2/1")
             except Exception as e:
                 print(f"Error loading text-to-audio model: {e}")
         return self.text_to_audio_model
@@ -84,7 +84,13 @@ class DataTypeConversions:
 
         model = self.load_text_to_text_model()
         try:
-            embeddings = model([text])
+            # Prepare input as a dictionary with required keys
+            inputs = {
+                'input_word_ids': tf.constant([[text]]),
+                'input_mask': tf.constant([[1]]),
+                'input_type_ids': tf.constant([[0]])
+            }
+            embeddings = model(inputs, training=False)
             try:
                 # Convert embeddings to numpy array once for performance optimization
                 embeddings_np = embeddings.numpy()
@@ -159,7 +165,9 @@ class DataTypeConversions:
 
         model = self.load_text_to_audio_model()
         try:
-            audio = model([text])
+            # Preprocess input text into the correct tensor format
+            input_tensor = tf.constant([text], dtype=tf.string)
+            audio = model(input_tensor, training=False)
             return audio
         except Exception as e:
             print(f"Error during text-to-audio conversion: {e}")
