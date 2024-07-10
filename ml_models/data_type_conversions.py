@@ -210,7 +210,8 @@ class DataTypeConversions:
             config = yaml.load(f, Loader=yaml.Loader)
         mb_melgan = TFMelGANGenerator(config=MultiBandMelGANGeneratorConfig(**config["multiband_melgan_generator_params"]))
         mb_melgan._build()
-        mb_melgan.load_weights("/home/ubuntu/tensorflow/models/TensorFlowTTS/examples/multiband_melgan_hf/exp/train.multiband_melgan_hf.v1/checkpoints/generator-920000.h5")
+        weights_path = "/home/ubuntu/tensorflow/models/TensorFlowTTS/examples/multiband_melgan_hf/exp/train.multiband_melgan_hf.v1/checkpoints/generator-920000.h5"
+        mb_melgan.load_weights(weights_path)
         pqmf = TFPQMF(config=MultiBandMelGANGeneratorConfig(**config["multiband_melgan_generator_params"]))
 
         try:
