@@ -4,3 +4,6 @@ venv/
 
 # Ignore compiled Python files
 __pycache__/
+
+# Ignore TensorFlow Probability examples directory
+probability/
