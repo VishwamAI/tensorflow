@@ -334,7 +334,7 @@ class DataTypeConversions:
         try:
             # Generate a caption for the input image
             caption = captioning_model(image)
-            caption = caption.numpy().tostring()  # Convert to string without decode
+            caption = caption.numpy().decode('utf-8')  # Convert to string with decode
         except Exception as e:
             print(f"Error during image captioning: {e}")
             return tf.zeros([1, 16000])  # Return a placeholder tensor on error
@@ -342,8 +342,25 @@ class DataTypeConversions:
         # Use the text-to-audio model (Tacotron2) to convert the caption to audio
         model = self.load_text_to_audio_model()
         try:
-            audio = model([caption])
-            return audio
+            # Preprocess the caption text
+            caption = GermanTransliterate(replace={';': ',', ':': ' '}, sep_abbreviation=' -- ').transliterate(caption)
+            processor = Processor()
+            input_ids = processor.text_to_sequence(caption)
+            input_tensor = tf.constant([input_ids], dtype=tf.int32)
+
+            # Generate mel spectrograms
+            _, mel_outputs, _, _ = model.inference(
+                input_tensor,
+                tf.convert_to_tensor([len(input_ids)], dtype=tf.int32),
+                tf.convert_to_tensor([0], dtype=tf.int32)
+            )
+            # Synthesize audio
+            generated_subbands = self.mb_melgan(mel_outputs)
+            audio = self.pqmf.synthesis(generated_subbands)[0, :-1024, 0]
+            # Ensure the audio tensor has the correct shape
+            audio = tf.pad(audio, [[0, max(0, 16000 - tf.shape(audio)[0])]])  # Pad if necessary
+            audio = audio[:16000]  # Trim if necessary
+            return tf.expand_dims(audio, axis=0)  # Ensure shape is (1, 16000)
         except Exception as e:
             print(f"Error during text-to-audio conversion: {e}")
             return tf.zeros([1, 16000])  # Return a placeholder tensor on error
