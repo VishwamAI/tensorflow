@@ -226,16 +226,11 @@ class DataTypeConversions:
 
         # Load models
         tacotron2 = self.load_text_to_audio_model()
-        config_path = "/home/ubuntu/tensorflow/models/TensorFlowTTS/examples/multiband_melgan/conf/multiband_melgan.v1.yaml"
-        with open(config_path) as f:
-            config = yaml.load(f, Loader=yaml.Loader)
-        mb_melgan = TFMelGANGenerator(config=MultiBandMelGANGeneratorConfig(**config["multiband_melgan_generator_params"]))
-        mb_melgan._build()
-        weights_path = "/home/ubuntu/tensorflow/models/TensorFlowTTS/examples/multiband_melgan_hf/exp/train.multiband_melgan_hf.v1/checkpoints/generator-920000.h5"
-        mb_melgan.load_weights(weights_path)
-        pqmf = TFPQMF(config=MultiBandMelGANGeneratorConfig(**config["multiband_melgan_generator_params"]))
+        mb_melgan = self.load_mb_melgan_model()
+        pqmf = self.load_pqmf_model()
 
-        try:
+        @tf.function
+        def synthesize_audio(input_tensor):
             # Generate mel spectrograms
             _, mel_outputs, _, _ = tacotron2.inference(
                 input_tensor,
@@ -249,9 +244,11 @@ class DataTypeConversions:
             audio = tf.pad(audio, [[0, max(0, 16000 - tf.shape(audio)[0])]])  # Pad if necessary
             audio = audio[:16000]  # Trim if necessary
             return tf.expand_dims(audio, axis=0)  # Ensure shape is (1, 16000)
+
+        try:
+            return synthesize_audio(input_tensor)
         except Exception as e:
-            print(f"Error during text-to-audio conversion: {e}")
-            return tf.zeros([1, 16000])  # Return a placeholder tensor on error
+            raise RuntimeError(f"Error during text-to-audio conversion: {e}")
 
     def image_to_text(self, image: tf.Tensor) -> str:
         """
