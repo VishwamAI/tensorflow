@@ -116,12 +116,8 @@ class DataTypeConversions:
 
         model = self.load_text_to_text_model()
         try:
-            # Prepare input as a dictionary with required keys
-            inputs = {
-                'input_word_ids': tf.constant([[text]]),
-                'input_mask': tf.constant([[1]]),
-                'input_type_ids': tf.constant([[0]])
-            }
+            # Prepare input as a tensor
+            inputs = tf.constant([text])
             embeddings = model(inputs, training=False)
             try:
                 # Convert embeddings to numpy array once for performance optimization
