@@ -4,6 +4,10 @@ import tensorflow_probability as tfp
 import numpy as np
 from scipy.io import wavfile
 from german_transliterate.core import GermanTransliterate
+import yaml
+from tensorflow_tts.models import TFMelGANGenerator
+from tensorflow_tts.models import TFPQMF
+from tensorflow_tts.configs import MultiBandMelGANGeneratorConfig
 
 _pad = "pad"
 _eos = "eos"
@@ -46,7 +50,7 @@ class DataTypeConversions:
     def load_text_to_image_model(self):
         if self.text_to_image_model is None:
             try:
-                self.text_to_image_model = hub.load("https://tfhub.dev/deepmind/biggan-256/2")
+                self.text_to_image_model = hub.load("https://kaggle.com/models/deepmind/biggan/frameworks/TensorFlow1/variations/128/versions/1")
             except Exception as e:
                 print(f"Error loading text-to-image model: {e}")
         return self.text_to_image_model
@@ -91,6 +95,14 @@ class DataTypeConversions:
                 print(f"Error loading image-to-video model: {e}")
         return self.image_to_video_model
 
+    def load_image_captioning_model(self):
+        if self.image_captioning_model is None:
+            try:
+                self.image_captioning_model = hub.load("https://tfhub.dev/google/imagenet/inception_v3/classification/4")
+            except Exception as e:
+                print(f"Error loading image captioning model: {e}")
+        return self.image_captioning_model
+
     def text_to_text(self, text: str, detailed: bool = True) -> str:
         """
         Convert text to text using a pre-trained language model.
@@ -104,13 +116,9 @@ class DataTypeConversions:
 
         model = self.load_text_to_text_model()
         try:
-            # Prepare input as a dictionary with required keys
-            inputs = {
-                'input_word_ids': tf.constant([[text]]),
-                'input_mask': tf.constant([[1]]),
-                'input_type_ids': tf.constant([[0]])
-            }
-            embeddings = model(inputs, training=False)
+            # Prepare input as a tensor
+            inputs = tf.constant([text])
+            embeddings = model(inputs)
             try:
                 # Convert embeddings to numpy array once for performance optimization
                 embeddings_np = embeddings.numpy()
@@ -146,12 +154,32 @@ class DataTypeConversions:
 
         model = self.load_text_to_image_model()
         noise = tf.random.normal([1, 128])
+        class_vector = self.text_to_class_vector(text)
         try:
-            image = model([noise, text])
+            image = model([noise, class_vector])
             return image
         except Exception as e:
             print(f"Error during text-to-image conversion: {e}")
             return tf.zeros([1, 256, 256, 3])  # Return a placeholder tensor on error
+
+    def text_to_class_vector(self, text: str) -> tf.Tensor:
+        """
+        Convert text description to class vector for BigGAN model.
+
+        :param text: Input text description.
+        :return: Class vector tensor.
+        """
+        # Placeholder mapping from text to class index
+        class_mapping = {
+            "dog": 207,
+            "cat": 281,
+            "car": 817,
+            "tree": 334,
+            "flower": 985
+        }
+        class_index = class_mapping.get(text.lower(), 0)  # Default to 0 if text not found
+        class_vector = tf.one_hot([class_index], depth=1000)  # BigGAN uses 1000 classes
+        return class_vector
 
     def text_to_video(self, text: str) -> tf.Tensor:
         """
@@ -165,8 +193,8 @@ class DataTypeConversions:
 
         model = self.load_text_to_video_model()
         try:
-            # Generate 30 frames for the video
-            frames = [model([text]) for _ in range(30)]
+            # Generate 30 frames for the video with varying content based on input text
+            frames = [model(tf.constant([f"{text} frame {i}"])) for i in range(30)]
             video = tf.stack(frames, axis=1)
             return video
         except Exception as e:
@@ -189,13 +217,18 @@ class DataTypeConversions:
         input_ids = processor.text_to_sequence(text)
 
         # Ensure input tensor has the correct shape and type
-        input_ids = input_ids[:9] + [0] * (9 - len(input_ids))  # Pad or truncate to length 9
         input_tensor = tf.constant([input_ids], dtype=tf.int32)
 
         # Load models
         tacotron2 = self.load_text_to_audio_model()
-        mbmelgan = tf.saved_model.load("/home/ubuntu/tensorflow/models/mbmelgan")
-        pqmf = tf.saved_model.load("/home/ubuntu/tensorflow/models/pqmf")
+        config_path = "/home/ubuntu/tensorflow/models/TensorFlowTTS/examples/multiband_melgan/conf/multiband_melgan.v1.yaml"
+        with open(config_path) as f:
+            config = yaml.load(f, Loader=yaml.Loader)
+        mb_melgan = TFMelGANGenerator(config=MultiBandMelGANGeneratorConfig(**config["multiband_melgan_generator_params"]))
+        mb_melgan._build()
+        weights_path = "/home/ubuntu/tensorflow/models/TensorFlowTTS/examples/multiband_melgan_hf/exp/train.multiband_melgan_hf.v1/checkpoints/generator-920000.h5"
+        mb_melgan.load_weights(weights_path)
+        pqmf = TFPQMF(config=MultiBandMelGANGeneratorConfig(**config["multiband_melgan_generator_params"]))
 
         try:
             # Generate mel spectrograms
@@ -205,9 +238,12 @@ class DataTypeConversions:
                 tf.convert_to_tensor([0], dtype=tf.int32)
             )
             # Synthesize audio
-            generated_subbands = mbmelgan(mel_outputs)
+            generated_subbands = mb_melgan(mel_outputs)
             audio = pqmf.synthesis(generated_subbands)[0, :-1024, 0]
-            return audio
+            # Ensure the audio tensor has the correct shape
+            audio = tf.pad(audio, [[0, max(0, 16000 - tf.shape(audio)[0])]])  # Pad if necessary
+            audio = audio[:16000]  # Trim if necessary
+            return tf.expand_dims(audio, axis=0)  # Ensure shape is (1, 16000)
         except Exception as e:
             print(f"Error during text-to-audio conversion: {e}")
             return tf.zeros([1, 16000])  # Return a placeholder tensor on error
@@ -293,14 +329,41 @@ class DataTypeConversions:
         if not isinstance(image, tf.Tensor):
             raise ValueError("Input image must be a tensor.")
 
-        # Placeholder for image captioning step
-        caption = "This is a placeholder caption for the input image."
+        # Load the image captioning model
+        captioning_model = self.load_image_captioning_model()
+        try:
+            # Generate a caption for the input image
+            predictions = captioning_model(image)
+            predictions_np = predictions.numpy()
+            # Map the predicted class indices to their corresponding labels
+            top_prediction = np.argmax(predictions_np, axis=-1)
+            caption = str(top_prediction)
+        except Exception as e:
+            print(f"Error during image captioning: {e}")
+            return tf.zeros([1, 16000])  # Return a placeholder tensor on error
 
         # Use the text-to-audio model (Tacotron2) to convert the caption to audio
         model = self.load_text_to_audio_model()
         try:
-            audio = model([caption])
-            return audio
+            # Preprocess the caption text
+            caption = GermanTransliterate(replace={';': ',', ':': ' '}, sep_abbreviation=' -- ').transliterate(caption)
+            processor = Processor()
+            input_ids = processor.text_to_sequence(caption)
+            input_tensor = tf.constant([input_ids], dtype=tf.int32)
+
+            # Generate mel spectrograms
+            _, mel_outputs, _, _ = model.inference(
+                input_tensor,
+                tf.convert_to_tensor([len(input_ids)], dtype=tf.int32),
+                tf.convert_to_tensor([0], dtype=tf.int32)
+            )
+            # Synthesize audio
+            generated_subbands = self.mb_melgan(mel_outputs)
+            audio = self.pqmf.synthesis(generated_subbands)[0, :-1024, 0]
+            # Ensure the audio tensor has the correct shape
+            audio = tf.pad(audio, [[0, max(0, 16000 - tf.shape(audio)[0])]])  # Pad if necessary
+            audio = audio[:16000]  # Trim if necessary
+            return tf.expand_dims(audio, axis=0)  # Ensure shape is (1, 16000)
         except Exception as e:
             print(f"Error during text-to-audio conversion: {e}")
             return tf.zeros([1, 16000])  # Return a placeholder tensor on error

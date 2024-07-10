@@ -103,5 +103,69 @@ class TestDataTypeConversions(unittest.TestCase):
         except Exception as e:
             self.fail(f"test_image_to_audio failed: {e}")
 
+    def test_invalid_text_to_text(self):
+        """
+        Test the text_to_text method with invalid input.
+        """
+        invalid_input = 12345  # Non-string input
+        with self.assertRaises(ValueError):
+            self.converter.text_to_text(invalid_input)
+
+    def test_invalid_text_to_image(self):
+        """
+        Test the text_to_image method with invalid input.
+        """
+        invalid_input = 12345  # Non-string input
+        with self.assertRaises(ValueError):
+            self.converter.text_to_image(invalid_input)
+
+    def test_invalid_text_to_video(self):
+        """
+        Test the text_to_video method with invalid input.
+        """
+        invalid_input = 12345  # Non-string input
+        with self.assertRaises(ValueError):
+            self.converter.text_to_video(invalid_input)
+
+    def test_invalid_text_to_audio(self):
+        """
+        Test the text_to_audio method with invalid input.
+        """
+        invalid_input = 12345  # Non-string input
+        with self.assertRaises(ValueError):
+            self.converter.text_to_audio(invalid_input)
+
+    def test_invalid_image_to_text(self):
+        """
+        Test the image_to_text method with invalid input.
+        """
+        invalid_input = "invalid_image"  # Non-tensor input
+        with self.assertRaises(ValueError):
+            self.converter.image_to_text(invalid_input)
+
+    def test_invalid_image_to_image(self):
+        """
+        Test the image_to_image method with invalid input.
+        """
+        invalid_input = "invalid_image"  # Non-tensor input
+        with self.assertRaises(ValueError):
+            self.converter.image_to_image(invalid_input)
+
+    def test_invalid_image_to_video(self):
+        """
+        Test the image_to_video method with invalid input.
+        """
+        invalid_input = "invalid_image"  # Non-tensor input
+        with self.assertRaises(ValueError):
+            self.converter.image_to_video(invalid_input)
+
+    def test_invalid_image_to_audio(self):
+        """
+        Test the image_to_audio method with invalid input.
+        """
+        invalid_input = "invalid_image"  # Non-tensor input
+        with self.assertRaises(ValueError):
+            self.converter.image_to_audio(invalid_input)
+
 if __name__ == "__main__":
     unittest.main()
