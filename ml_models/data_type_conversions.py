@@ -18,7 +18,7 @@ class DataTypeConversions:
     def load_text_to_text_model(self):
         if self.text_to_text_model is None:
             try:
-                self.text_to_text_model = hub.load("https://tfhub.dev/google/universal-sentence-encoder/4")
+                self.text_to_text_model = hub.KerasLayer("https://www.kaggle.com/models/google/universal-sentence-encoder/TensorFlow2/cmlm-en-base/1")
             except Exception as e:
                 print(f"Error loading text-to-text model: {e}")
         return self.text_to_text_model
