@@ -193,8 +193,8 @@ class DataTypeConversions:
 
         model = self.load_text_to_video_model()
         try:
-            # Generate 30 frames for the video
-            frames = [model(tf.constant([text])) for _ in range(30)]
+            # Generate 30 frames for the video with varying content based on input text
+            frames = [model(tf.constant([f"{text} frame {i}"])) for i in range(30)]
             video = tf.stack(frames, axis=1)
             return video
         except Exception as e:
