@@ -74,7 +74,7 @@ class DataTypeConversions:
     def load_image_to_audio_model(self):
         if self.image_to_audio_model is None:
             try:
-                self.image_to_audio_model = hub.load("https://tfhub.dev/google/wav2vec2/2")
+                self.image_to_audio_model = hub.load("https://tfhub.dev/vasudevgupta7/wav2vec2-960h/1")
             except Exception as e:
                 print(f"Error loading image-to-audio model: {e}")
         return self.image_to_audio_model
