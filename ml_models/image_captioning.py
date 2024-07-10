@@ -27,7 +27,8 @@ class ImageCaptioningModel(tf.keras.Model):
             look_ahead_mask = self.create_look_ahead_mask(len(caption))
             padding_mask = self.create_padding_mask(tf.convert_to_tensor([caption]))
             output = self.transformer_decoder([features, tf.expand_dims(caption, 0), look_ahead_mask, padding_mask], training=False)
-            next_token = tf.argmax(output, axis=-1)[0, -1].numpy()
+            logits = output[:, -1, :] / temperature
+            next_token = tf.random.categorical(logits, num_samples=1)[0, 0].numpy()
             caption.append(next_token)
             if next_token == self.tokenizer.end_token:
                 break
@@ -56,9 +57,12 @@ class ImageCaptioningModel(tf.keras.Model):
 
     def run_and_show_attention(self, image, temperature=0.0):
         result_txt = self.generate_caption(image, temperature)
-        str_tokens = result_txt.split()
-        str_tokens.append('[END]')
-        attention_maps = [layer.last_attention_scores for layer in self.transformer_decoder.layers]
+        str_tokens = self.tokenizer.tokenize(result_txt)
+        str_tokens.append(self.tokenizer.end_token)
+        look_ahead_mask = self.create_look_ahead_mask(len(str_tokens))
+        padding_mask = self.create_padding_mask(tf.convert_to_tensor([str_tokens]))
+        features = self.feature_extractor(image, training=False)
+        attention_maps = [layer.last_attention_scores for layer in self.transformer_decoder([features, tf.expand_dims(str_tokens, 0), look_ahead_mask, padding_mask])]
         attention_maps = tf.concat(attention_maps, axis=0)
         attention_maps = einops.reduce(attention_maps, 'batch heads sequence (height width) -> sequence height width', height=7, width=7, reduction='mean')
         self.plot_attention_maps(image / 255, str_tokens, attention_maps)
