@@ -38,6 +38,8 @@ class DataTypeConversions:
         self.image_to_image_model = None
         self.image_to_video_model = None
         self.image_captioning_model = None
+        self.mb_melgan_model = None
+        self.pqmf_model = None
 
     def load_text_to_text_model(self):
         if self.text_to_text_model is None:
@@ -70,6 +72,23 @@ class DataTypeConversions:
             except Exception as e:
                 print(f"Error loading text-to-audio model: {e}")
         return self.text_to_audio_model
+
+    def load_mb_melgan_model(self):
+        if self.mb_melgan_model is None:
+            try:
+                self.mb_melgan_model = TFMelGANGenerator(MultiBandMelGANGeneratorConfig())
+            except Exception as e:
+                print(f"Error loading mb_melgan model: {e}")
+        return self.mb_melgan_model
+
+    def load_pqmf_model(self):
+        if self.pqmf_model is None:
+            try:
+                config = MultiBandMelGANGeneratorConfig()
+                self.pqmf_model = TFPQMF(config=config, name="pqmf")
+            except Exception as e:
+                print(f"Error loading pqmf model: {e}")
+        return self.pqmf_model
 
     def load_image_to_text_model(self):
         if self.image_to_text_model is None:
@@ -364,8 +383,10 @@ class DataTypeConversions:
                 tf.convert_to_tensor([0], dtype=tf.int32)
             )
             # Synthesize audio
-            generated_subbands = self.mb_melgan(mel_outputs)
-            audio = self.pqmf.synthesis(generated_subbands)[0, :-1024, 0]
+            mb_melgan = self.load_mb_melgan_model()
+            pqmf = self.load_pqmf_model()
+            generated_subbands = mb_melgan(mel_outputs)
+            audio = pqmf.synthesis(generated_subbands)[0, :-1024, 0]
             # Ensure the audio tensor has the correct shape
             audio = tf.pad(audio, [[0, max(0, 16000 - tf.shape(audio)[0])]])  # Pad if necessary
             audio = audio[:16000]  # Trim if necessary
