@@ -38,6 +38,8 @@ class DataTypeConversions:
         self.image_to_image_model = None
         self.image_to_video_model = None
         self.image_captioning_model = None
+        self.mb_melgan_model = None
+        self.pqmf_model = None
 
     def load_text_to_text_model(self):
         if self.text_to_text_model is None:
@@ -70,6 +72,23 @@ class DataTypeConversions:
             except Exception as e:
                 print(f"Error loading text-to-audio model: {e}")
         return self.text_to_audio_model
+
+    def load_mb_melgan_model(self):
+        if self.mb_melgan_model is None:
+            try:
+                self.mb_melgan_model = TFMelGANGenerator(MultiBandMelGANGeneratorConfig())
+            except Exception as e:
+                print(f"Error loading mb_melgan model: {e}")
+        return self.mb_melgan_model
+
+    def load_pqmf_model(self):
+        if self.pqmf_model is None:
+            try:
+                config = MultiBandMelGANGeneratorConfig()
+                self.pqmf_model = TFPQMF(config=config, name="pqmf")
+            except Exception as e:
+                print(f"Error loading pqmf model: {e}")
+        return self.pqmf_model
 
     def load_image_to_text_model(self):
         if self.image_to_text_model is None:
@@ -109,7 +128,7 @@ class DataTypeConversions:
 
         :param text: Input text.
         :param detailed: Whether to include statistical analysis in the output.
-        :return: A string containing the embeddings as numpy arrays, and optionally the mean and variance of the embeddings.
+        :return: A string containing the embeddings as numpy arrays, and optionally the mean, variance, and other statistics of the embeddings.
         """
         if not isinstance(text, str):
             raise ValueError("Input text must be a string.")
@@ -124,23 +143,28 @@ class DataTypeConversions:
                 embeddings_np = embeddings.numpy()
             except Exception as e:
                 print(f"Error converting embeddings to numpy array: {e}")
-                return ""
+                return f"Error converting embeddings to numpy array: {e}"
 
             if detailed:
                 try:
                     # Perform statistical analysis on embeddings using TensorFlow Probability
                     mean, variance = tfp.stats.mean(embeddings), tfp.stats.variance(embeddings)
-                    # Convert mean and variance to numpy arrays once for performance optimization
+                    stddev = tfp.stats.stddev(embeddings)
+                    skewness = tfp.stats.skewness(embeddings)
+                    kurtosis = tfp.stats.kurtosis(embeddings)
+                    # Convert statistics to numpy arrays once for performance optimization
                     mean_np, variance_np = mean.numpy(), variance.numpy()
-                    return f"Embeddings: {embeddings_np}, Mean: {mean_np}, Variance: {variance_np}"
+                    stddev_np, skewness_np, kurtosis_np = stddev.numpy(), skewness.numpy(), kurtosis.numpy()
+                    return f"Embeddings: {embeddings_np}, Mean: {mean_np}, Variance: {variance_np}, StdDev: {stddev_np}, Skewness: {skewness_np}, Kurtosis: {kurtosis_np}"
                 except Exception as tfp_error:
                     # Fallback to embeddings-only output if statistical analysis fails
                     print(f"Error during statistical analysis with TensorFlow Probability: {tfp_error}")
+                    return f"Embeddings: {embeddings_np}, Error during statistical analysis: {tfp_error}"
             return f"Embeddings: {embeddings_np}"
         except Exception as e:
             # Handle errors during text-to-text conversion
             print(f"Error during text-to-text conversion: {e}")
-            return ""
+            return f"Error during text-to-text conversion: {e}"
 
     def text_to_image(self, text: str) -> tf.Tensor:
         """
@@ -156,8 +180,9 @@ class DataTypeConversions:
         noise = tf.random.normal([1, 128])
         class_vector = self.text_to_class_vector(text)
         try:
-            image = model([noise, class_vector])
-            return image
+            # Use the appropriate method to generate the image
+            image = model.signatures['serving_default'](tf.constant(noise), tf.constant(class_vector))
+            return image['output_0']
         except Exception as e:
             print(f"Error during text-to-image conversion: {e}")
             return tf.zeros([1, 256, 256, 3])  # Return a placeholder tensor on error
@@ -192,9 +217,14 @@ class DataTypeConversions:
             raise ValueError("Input text must be a string.")
 
         model = self.load_text_to_video_model()
+
+        @tf.function
+        def generate_frame(text, i):
+            return model(tf.constant([f"{text} frame {i}"]))
+
         try:
             # Generate 30 frames for the video with varying content based on input text
-            frames = [model(tf.constant([f"{text} frame {i}"])) for i in range(30)]
+            frames = [generate_frame(text, i) for i in range(30)]
             video = tf.stack(frames, axis=1)
             return video
         except Exception as e:
@@ -221,16 +251,11 @@ class DataTypeConversions:
 
         # Load models
         tacotron2 = self.load_text_to_audio_model()
-        config_path = "/home/ubuntu/tensorflow/models/TensorFlowTTS/examples/multiband_melgan/conf/multiband_melgan.v1.yaml"
-        with open(config_path) as f:
-            config = yaml.load(f, Loader=yaml.Loader)
-        mb_melgan = TFMelGANGenerator(config=MultiBandMelGANGeneratorConfig(**config["multiband_melgan_generator_params"]))
-        mb_melgan._build()
-        weights_path = "/home/ubuntu/tensorflow/models/TensorFlowTTS/examples/multiband_melgan_hf/exp/train.multiband_melgan_hf.v1/checkpoints/generator-920000.h5"
-        mb_melgan.load_weights(weights_path)
-        pqmf = TFPQMF(config=MultiBandMelGANGeneratorConfig(**config["multiband_melgan_generator_params"]))
+        mb_melgan = self.load_mb_melgan_model()
+        pqmf = self.load_pqmf_model()
 
-        try:
+        @tf.function
+        def synthesize_audio(input_tensor):
             # Generate mel spectrograms
             _, mel_outputs, _, _ = tacotron2.inference(
                 input_tensor,
@@ -244,9 +269,11 @@ class DataTypeConversions:
             audio = tf.pad(audio, [[0, max(0, 16000 - tf.shape(audio)[0])]])  # Pad if necessary
             audio = audio[:16000]  # Trim if necessary
             return tf.expand_dims(audio, axis=0)  # Ensure shape is (1, 16000)
+
+        try:
+            return synthesize_audio(input_tensor)
         except Exception as e:
-            print(f"Error during text-to-audio conversion: {e}")
-            return tf.zeros([1, 16000])  # Return a placeholder tensor on error
+            raise RuntimeError(f"Error during text-to-audio conversion: {e}")
 
     def image_to_text(self, image: tf.Tensor) -> str:
         """
@@ -358,8 +385,10 @@ class DataTypeConversions:
                 tf.convert_to_tensor([0], dtype=tf.int32)
             )
             # Synthesize audio
-            generated_subbands = self.mb_melgan(mel_outputs)
-            audio = self.pqmf.synthesis(generated_subbands)[0, :-1024, 0]
+            mb_melgan = self.load_mb_melgan_model()
+            pqmf = self.load_pqmf_model()
+            generated_subbands = mb_melgan(mel_outputs)
+            audio = pqmf.synthesis(generated_subbands)[0, :-1024, 0]
             # Ensure the audio tensor has the correct shape
             audio = tf.pad(audio, [[0, max(0, 16000 - tf.shape(audio)[0])]])  # Pad if necessary
             audio = audio[:16000]  # Trim if necessary
