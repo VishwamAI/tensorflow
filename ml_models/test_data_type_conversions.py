@@ -1,6 +1,12 @@
 import unittest
 import tensorflow as tf
 import numpy as np
+import sys
+import os
+
+# Add the project's root directory to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from ml_models.data_type_conversions import DataTypeConversions
 
 class TestDataTypeConversions(unittest.TestCase):
