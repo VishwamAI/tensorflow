@@ -179,8 +179,9 @@ class DataTypeConversions:
         noise = tf.random.normal([1, 128])
         class_vector = self.text_to_class_vector(text)
         try:
-            image = model([noise, class_vector], training=False)
-            return image
+            # Use the appropriate method to generate the image
+            image = model.signatures['serving_default'](tf.constant(noise), tf.constant(class_vector))
+            return image['output_0']
         except Exception as e:
             print(f"Error during text-to-image conversion: {e}")
             return tf.zeros([1, 256, 256, 3])  # Return a placeholder tensor on error
