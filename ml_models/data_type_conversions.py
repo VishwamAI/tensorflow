@@ -265,7 +265,7 @@ class DataTypeConversions:
             # Synthesize audio
             generated_subbands = mb_melgan(mel_outputs)
             # Ensure generated_subbands has the correct shape
-            generated_subbands = tf.ensure_shape(generated_subbands, [None, None, 4])
+            generated_subbands = tf.ensure_shape(generated_subbands, [tf.shape(mel_outputs)[0], tf.shape(mel_outputs)[1], 4])
             audio = pqmf.synthesis(generated_subbands)[0, :-1024, 0]
             # Ensure the audio tensor has the correct shape
             audio = tf.pad(audio, [[0, max(0, 16000 - tf.shape(audio)[0])]])  # Pad if necessary
