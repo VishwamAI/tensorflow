@@ -44,3 +44,10 @@ Automation features will include:
 
 ## Conclusion
 This design plan provides a high-level overview of the proposed TensorFlow alternative model. The next steps involve implementing the outlined architecture and features, followed by rigorous testing and optimization to ensure the model meets the desired objectives.
+
+## Updates
+- **Advanced Math Operations**: Implemented Singular Value Decomposition (SVD) and Fast Fourier Transform (FFT) in the `BaseModel` class.
+- **Lazy Loading**: Implemented lazy loading for pre-trained models in the `DataTypeConversions` class.
+- **Performance Optimization**: Applied `tf.function` decorator for performance optimization.
+- **Testing**: Developed and passed unit tests for SVD and FFT operations.
+- **Documentation**: Updated documentation to reflect the latest state of the project.
