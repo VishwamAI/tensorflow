@@ -118,7 +118,7 @@ class DataTypeConversions:
         try:
             # Prepare input as a tensor
             inputs = tf.constant([text])
-            embeddings = model(inputs, training=False)
+            embeddings = model(inputs)
             try:
                 # Convert embeddings to numpy array once for performance optimization
                 embeddings_np = embeddings.numpy()
