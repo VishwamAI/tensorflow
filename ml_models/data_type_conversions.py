@@ -154,8 +154,9 @@ class DataTypeConversions:
 
         model = self.load_text_to_image_model()
         noise = tf.random.normal([1, 128])
+        class_vector = self.text_to_class_vector(text)
         try:
-            image = model([noise, text])
+            image = model([noise, class_vector])
             return image
         except Exception as e:
             print(f"Error during text-to-image conversion: {e}")
@@ -174,7 +175,7 @@ class DataTypeConversions:
         model = self.load_text_to_video_model()
         try:
             # Generate 30 frames for the video
-            frames = [model([text]) for _ in range(30)]
+            frames = [model(tf.constant([text])) for _ in range(30)]
             video = tf.stack(frames, axis=1)
             return video
         except Exception as e:
