@@ -192,9 +192,14 @@ class DataTypeConversions:
             raise ValueError("Input text must be a string.")
 
         model = self.load_text_to_video_model()
+
+        @tf.function
+        def generate_frame(text, i):
+            return model(tf.constant([f"{text} frame {i}"]))
+
         try:
             # Generate 30 frames for the video with varying content based on input text
-            frames = [model(tf.constant([f"{text} frame {i}"])) for i in range(30)]
+            frames = [generate_frame(text, i) for i in range(30)]
             video = tf.stack(frames, axis=1)
             return video
         except Exception as e:
