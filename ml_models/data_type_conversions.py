@@ -272,7 +272,7 @@ class DataTypeConversions:
                 generated_subbands = tf.reshape(generated_subbands, [batch_size, time_steps // subbands, subbands])
             audio = pqmf.synthesis(generated_subbands)[0, :-1024, 0]
             # Ensure the audio tensor has the correct shape
-            audio = tf.pad(audio, [[0, max(0, 16000 - tf.shape(audio)[0])]])  # Pad if necessary
+            audio = tf.pad(audio, [[0, tf.maximum(0, 16000 - tf.shape(audio)[0])]])  # Pad if necessary
             audio = audio[:16000]  # Trim if necessary
             return tf.expand_dims(audio, axis=0)  # Ensure shape is (1, 16000)
 
