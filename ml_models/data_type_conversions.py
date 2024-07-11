@@ -217,8 +217,9 @@ class DataTypeConversions:
             raise ValueError("Input text must be a string.")
 
         model = self.load_text_to_video_model()
+        if model is None:
+            raise RuntimeError("Failed to load text-to-video model.")
 
-        @tf.function
         def generate_frame(text, i):
             return model(tf.constant([f"{text} frame {i}"]))
 
