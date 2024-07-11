@@ -1,0 +1,3 @@
+[submodule "models/TensorFlowTTS"]
+	path = models/TensorFlowTTS
+	url = https://github.com/TensorSpeech/TensorFlowTTS.git
